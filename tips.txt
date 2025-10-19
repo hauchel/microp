@@ -1,0 +1,119 @@
+# via Serial:
+
+import network
+wlan = network.WLAN(network.STA_IF)
+wlan.active(True)
+wlan.connect('FRITZ!HH','47114711')
+import webrepl
+webrepl.start()
+
+dann 
+# show files:
+import os
+os.listdir()
+os.remove('mydu1.py')
+file = open('error.log', 'r')
+print(file.read())
+file.close()
+
+# UART
+from machine import UART
+uart = UART(0, 38400)   # 0 or 1
+uart.init(baudrate=38400, bits=8, parity=None, stop=1)
+uart.write('abc')
+b=uart.read(1)
+
+# disconnect
+import os
+os.dupterm(None, 1)
+
+#flashsize
+import esp
+esp.flash_size()
+
+#exceptions
+try:
+    1/0
+except Exception as e:
+    import sys
+    with open("error.log", "a") as f:
+        sys.print_exception(e, f)
+	  
+
+# binarys
+	b'a'  	65
+	b'\xf0'	
+	bytes([255])	b'\xff'
+	int.from_bytes(b'\xf0')	240
+	a=bytearray(4)
+	a[0]=128
+	string = data.decode('utf-8')
+	
+# I2C
+import machine
+from machine import I2C
+pinSDA=machine.Pin(4) #green
+pinSCL=machine.Pin(5) #yell
+c=I2C(scl=pinSCL, sda=pinSDA)
+c.readfrom(devaddr,cnt)
+c.writeto(32, b'\xff')¶   #   devaddr, buf
+
+c.writeto_mem(39,0,b'\0')
+c.readfrom_mem(devaddr, memaddr, nbytes) 
+c.
+ 
+ 
+# nrf24l01
+
+#MPU6050  
+from mpu6050 import MPU6050
+imu = MPU6050(2,False)
+
+
+#Anschluss
+RST	pink		TXD	green
+ADC			RXD	yell
+EN			SCL	yell
+IO16			SDA	grn
+IO14			IO00	ws
+IO12			IO16
+IO13
+VCC
+
+ v1.12-334 and newer (including v1.13) require an ESP8266 module with 2MiB of flash or more, 	
+#setup go to pogramming Mode hold grey, press pink, release pink, release grey
+python -m esptool --port com3 erase_flash
+python -m esptool --port com3 --baud 460800 write_flash --flash_size=detect 0 ESP8266_GENERIC-20241129-v1.24.1.bin
+after Reset:
+ampy --port COM3 put boot.py boot.py
+ampy --port COM3 put webrepl_cfg.py webrepl_cfg.py
+
+
+#QMC5883
+7.1 Setup
+ Write Register 0BH by 0x01 (Define Set/Reset period)
+                  11     1
+ Write Register 09H by 0x1D (Define OSR = 512, Full Scale Range = 8 Gauss, ODR = 200Hz, set continuous
+			9      29  
+7.2 measurement mode)
+Measurement Example
+ Check status register 06H[0] ,”1” means ready.
+ Read data register 00H ~ 05H.
+7.3
+Standby Example
+7.4  Write Register 09H by 0x00
+Soft Reset Example
+ Write Register 0AH by 0x80
+			10    128 
+			
+			
+ESP32
+
+Spannungsversorgung mindestens 500 mA!!!!, USB reicht oft nicht
+
+vor Aufruf GPIO00 auf Ground setzen und halten, da nachfolgend ein Reset (über USB) ausführt:
+python -m esptool --port com3 --chip esp32 erase_flash
+python -m esptool --chip esp32 --port com3 write_flash -z 0x1000 ESP32_GENERIC-20241129-v1.24.1.bin
+
+Reset ist EN,  dies wird aber über UART leichter gemacht, evtl mit Widerstand auf Ground ziehen
+
