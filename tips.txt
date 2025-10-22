@@ -87,7 +87,11 @@ python -m esptool --port com3 --baud 460800 write_flash --flash_size=detect 0 ES
 after Reset:
 ampy --port COM3 put boot.py boot.py
 ampy --port COM3 put webrepl_cfg.py webrepl_cfg.py
-
+Reset
+Find IP (43)
+putHelper.bat 43
+putbas.bat 43
+reset
 
 #QMC5883
 7.1 Setup

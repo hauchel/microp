@@ -20,9 +20,7 @@ for i in range(10):
     time.sleep(1)
 import webrepl
 webrepl.start()
-from schr import stepper
-g=stepper()
-g.action()  
+import bas
 
 
 

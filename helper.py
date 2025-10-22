@@ -27,3 +27,7 @@ class tast16():
         #print ('f0 zle:',bitw(b[0]),'=',zl)
         if zl==0: return 0
         return zl*4 + sp - 4
+        
+class wlan():
+    def __init__(self):
+        self.con=conn

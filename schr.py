@@ -27,17 +27,18 @@ class stepper():
     
     def __init__(self):
         print ("Howdy")
-        pinSDA=machine.Pin(4) #green
-        pinSCL=machine.Pin(5) #yell
-        self.con=I2C(scl=pinSCL, sda=pinSDA)
+        self.pinSDA=machine.Pin(4) #green
+        self.pinSCL=machine.Pin(5) #yell
+        self.con=I2C(scl=self.pinSCL, sda=self.pinSDA)
         self.tast=tast16(self.con)  #
-        self.tastc=0    # counter for tast query
+        self.tastc=0            # counter for tast query
+        self.tastl=0            # last pressed
         self.poller=uselect.poll()
         self.poller.register(sys.stdin,uselect.POLLIN)
   
         self.lasttick=time.ticks_us()
-        self.ticktime=2500        #in us, 0 disabled
-        self.acttime =   0         # in s, last move
+        self.ticktime=5000        # in us, 0 disabled
+        self.acttime =   0        # in ms, diabel all after last move
         
         self.out =[255,255]       # each PCF after start
         self.dirty=[True,True]
@@ -55,7 +56,8 @@ class stepper():
         self.richt =  [1,1,1,1]    #+-1 only
         
         # waypoints
-        self.wayp=[[10,10,0,0],[100,10],[10,100,0,0],[100,100]]
+        #self.wayp=[[10,10,0,0],[100,10],[10,100,0,0],[100,100]]
+        self.readwayp()
         
         self.inpAkt=False
         self.inp=0
@@ -96,7 +98,7 @@ class stepper():
             pcf=self.devpcf[a]
             print("\bA",a,"Dev",self.pcfadr[pcf],"Out",self.bitw(self.out[pcf]),"Soll",self.sollpos[a],"Ist",self.istpos[a],"Ri",self.richt[a],"Tick",self.ticktime)
         else:
-            print("\bA",a,'   ')
+            print("\bA",a,end='   ')
             for s in self.sollpos:
                 print (f"{s:>4}",end=' ')
             print("  Tick",self.ticktime)
@@ -159,8 +161,11 @@ class stepper():
     def showayp(self):
         i=0
         for wp in self.wayp:
-            print(i,wp)
+            print(f"{i:>3}",end='  ')
+            for s in wp:
+                print (f"{s:>4}",end=' ')
             i+=1
+            print()
             
     def readwayp(self):
         self.wayp=[]
@@ -174,9 +179,12 @@ class stepper():
         
     def gowayp(self,w):
         print('waypoint',w)
-        wps=self.wayp[w]
-        for a in range (len(wps)):
-            self.setpos(a,wps[a])
+        try:
+            wps=self.wayp[w]
+            for a in range (len(wps)):
+                self.setpos(a,wps[a])
+        except Exception as inst:
+            sys.print_exception(inst)
         
     def move(self,a):
         pcf=self.devpcf[a]
@@ -187,7 +195,7 @@ class stepper():
         self.dowrite(pcf,raus)
     
     def moveall(self):
-        #es wird 2 mal bei gleichem pcf geschrieben, stört nicht weiter
+        #es wird ggf 2 mal bei gleichem pcf geschrieben, stört nicht weiter
         moved=False
         for a in range(len(self.devpcf)):
             if self.istpos[a] != self.sollpos[a]:
@@ -236,8 +244,8 @@ class stepper():
                 elif ch=="e":
                     self.enable(a)                  
                 elif ch=="f":
-                    self.print ("speed",self.inp)  
-                    #con.init(pinSCL,pinSDA,freq=inp*1000)
+                    print ("speed",self.inp)  
+                    con.init(self.pinSCL,self.pinSDA,freq=inp*1000)
                 elif ch=="g":       
                     self.gowayp(self.inp)              
                 elif ch=="i":      
@@ -293,8 +301,10 @@ class stepper():
         
     def dotast(self):
         t=self.tast.taste()
+        if t==self.tastl: return
+        self.tastl=t
         if t!=0:
-            print('T',t)
+            self.gowayp(t)
 
     def action(self):
         while True:
@@ -305,11 +315,11 @@ class stepper():
                 if difftick >self.ticktime:
                     self.lasttick=time.ticks_us()
                     if self.moveall():
-                        self.acttime=time.time()
+                        self.acttime=time.ticks_ms()
                     else:
                         if self.acttime !=0:
-                            diff= time.time()-self.acttime 
-                            if diff >2:
+                            diff=time.ticks_diff(time.ticks_ms(),self.acttime)
+                            if diff >100:
                                 print('Autozu')
                                 self.acttime =0
                                 self.disableall()

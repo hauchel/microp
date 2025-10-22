@@ -9,6 +9,9 @@ from machine import I2C
 from machine import Pin
 from helper import tast16
 
+
+print ("Howdy",__name__)
+
 # some globals    
 count=2     # number of bytes
 start = time.ticks_ms()
@@ -18,29 +21,20 @@ pinSDA=machine.Pin(4) #green
 pinSCL=machine.Pin(5) #yell
 con=I2C(scl=pinSCL, sda=pinSDA)
 wlan = network.WLAN(network.STA_IF)
-print ("Howdy")
+py_files = []
 
 tast=tast16(con)
 
-def deep_sleep(msecs):
-  #configure RTC.ALARM0 to be able to wake the device
-  rtc = machine.RTC()
-  rtc.irq(trigger=rtc.ALARM0, wake=machine.DEEPSLEEP)
-  # set RTC.ALARM0 to fire after Xmilliseconds, waking the device
-  rtc.alarm(rtc.ALARM0, msecs)
-  #put the device to sleep
-  machine.deepsleep()
-  
 def info():
     gc.collect()
     print(" Free",gc.mem_free(),"Dev",devadr,"Cnt",count,)
     
-def doread():
+def readdev():
     # read one
     erg=con.readfrom(devadr,1)
     print("Read: ",erg)
         
-def dowrite(data):
+def writedev(data):
     print('Acks:',con.writeto(devadr,data))
 
 def connect():
@@ -58,45 +52,46 @@ def osinfo():
     print('\bblock_size',statvfs[0],'total_blocks',statvfs[2],'free_blocks',statvfs[3])
     info()
 
+def listfiles():
+    global py_files
+    py_files = [f for f in os.listdir() if f.endswith('.py')]
+    py_files.sort()  # optional, makes selection deterministic
+    print()
+    for i in range (len(py_files)):
+        print(i, py_files[i])    
+
+def reset_info():
+     r=machine.reset_cause()
+     print("Cause",r,end=' ')
+     if r==machine.PWRON_RESET:   print('Power')
+     elif r==machine.HARD_RESET:  print('Hard')
+     elif r==machine.WDT_RESET:   print('WDT')
+     elif r==machine.DEEPSLEEP_RESET: print('Deep')
+     elif r==machine.SOFT_RESET: print('Soft')
+     else: print('?')
+
 def bitw(b):
     bits = "{:08b}".format(b)
     return bits[:4]+' '+bits[4:]
-"""
-def finn(b):
-    if   b== 7: return 4
-    elif b==11: return 3
-    elif b==13: return 2
-    elif b==14: return 1
-    else:       return 0
-    
-def taste():
-    tadr=39
-    a=con.readfrom(tadr,1)
-    if a[0]==0xF0: return 0
-    #print ('\nis:',bitw(a[0]))
-    con.writeto(tadr,bytes([0x0f]))
-    a=con.readfrom(tadr,1)
-    sp=finn(a[0] & 0xF) # 7 11 13 14
-    print ('\n0f spa:',bitw(a[0]),'=',sp)
-    if sp==0: return 0
-    con.writeto(tadr,bytes([0xf0]))
-    b=con.readfrom(tadr,1)
-    zl=finn(b[0]>>4)
-    print ('f0 zle:',bitw(b[0]),'=',zl)
-    if zl==0: return 0
-    return zl*4 + sp - 4
-"""
     
 def hilfe():
     print("""
+    a     reset_cause
     b     I2C Scan
     ..d   set device ..
     ..f   set I2C Frequency
     ..h ..l ..i  .. High/Low/Input
     n     toggle network active
     o     os info
+    r     read device
+    ..w   write device 
+    R     hard reset
+    s     soft reset
     t     tasten auf 39
     q     quit
+    p     pyfiles
+    ..x   execute py
+    ..y   import py
     
     
     """)
@@ -125,8 +120,8 @@ def menu():
                 if ch=="b":         #scan (only from 0x08 to 0x77)
                     print("\bScanning...",end=' ')
                     print(con.scan())
-                elif ch=="a":       # accel read
-                    accdau()
+                elif ch=="a":       #
+                    reset_info()
                 elif ch=="c":       #set count
                     count=inp
                     info()                     
@@ -156,15 +151,20 @@ def menu():
                         print("\bWlan ",act)
                 elif ch=="o": 
                    osinfo()
+                elif ch=="p": 
+                   listfiles()
                 elif ch=="q" or ch == '\x04':       
                     print ("\brestart with ",__name__+".menu() ")
                     print ("Vergiss: sys.modules.pop('"+__name__+"', None)")
                     return
                 elif ch=="r":       #read 
                     doread()
+                elif ch=="R":
+                    print ("Killing me ...")
+                    machine.reset()
                 elif ch=="s":
-                    print ("Sleep",inp)  
-                    deep_sleep(inp*1000)
+                    print ("Killing me softly ...")
+                    machine.soft_reset()
                 elif ch=="t":       #taste
                     print(tast.taste())
                 elif ch=="u":
@@ -175,19 +175,13 @@ def menu():
                     dev.sleep()                   
                 elif ch=="w":
                     dowrite(bytes([inp]))
-                elif ch==",":
-                    push=inp;
-                    print(bytes([push]))
-                elif ch=="+":
-                    inp+=push
-                    print ("\b",inp)
-                    push=inp
-                elif ch=="-":
-                    inp-=push
-                    print ("\b",inp)
-                    push=inp                    
-                elif ch=="#":
-                    durch()
+                elif ch=="x":                    
+                    exec(open(py_files[inp]).read())
+                elif ch=="y":                    
+                    module_name = py_files[inp][:-3]  # remove ".py"
+                    print("Importing module:", module_name)
+                    mod = __import__(module_name)
+                    print("\n back in", __name__)
                 else:
                     info()
                     hilfe()
