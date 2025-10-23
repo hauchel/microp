@@ -51,14 +51,21 @@ class stepper():
         self.bitR   = [2,6,2,6]
         self.dreh   = [0,1,0,1]   # richt negiert wenn 1
         # 
-        self.sollpos= [0,0,0,0]
+        self.sollpos= [0,0,0,0]   # nur über setpos ändern sonst.. 
         self.istpos = [0,0,0,0]
         self.richt =  [1,1,1,1]    #+-1 only
         
         # waypoints
         #self.wayp=[[10,10,0,0],[100,10],[10,100,0,0],[100,100]]
         self.readwayp()
-        
+
+        # Geometrie
+        self.breit=22.0
+        self.hoch=19.0
+        self.ppcm= 35.0  #pulse per cm 
+        self.lnull = (self.hoch*self.hoch + self.breit*self.breit/4)**0.5
+        self.x=int(self.breit/2)
+        self.y=int(self.hoch/2)
         self.inpAkt=False
         self.inp=0
         self.verbo= False
@@ -78,13 +85,16 @@ class stepper():
     ..t   ticktime in us, 0=noticks
     ..f   set I2C Frequency
     ..i   set postion ist und soll
+    ..k   set ppcm/10
     ..m   set msp 0 Full, 1 Half, 2 Quarter, 3 Eight, 7 sixteen
     o     one move
     ..p   set position soll
     v     toggle verbose
     j     toggle irre
     q     quit
-    r w   read/write waypoint file
+    r     read waypoint file
+    w     show waypoints
+    ..x ..y
     R ..W   direct read write to pcf
     """)
 
@@ -98,10 +108,10 @@ class stepper():
             pcf=self.devpcf[a]
             print("\bA",a,"Dev",self.pcfadr[pcf],"Out",self.bitw(self.out[pcf]),"Soll",self.sollpos[a],"Ist",self.istpos[a],"Ri",self.richt[a],"Tick",self.ticktime)
         else:
-            print("\bA",a,end='   ')
+            print("\bA",a,f"x{self.x:>4} y {self.y:>4}",end='   ')
             for s in self.sollpos:
                 print (f"{s:>4}",end=' ')
-            print("  Tick",self.ticktime)
+            print(f"ppcm {self.ppcm:4.1f} Tick {self.ticktime}")
     
     def pcfread(self,pcf):
         # read one
@@ -204,7 +214,26 @@ class stepper():
                     print('moveall',a,self.istpos[a],self.sollpos[a])
                 self.move(a)
         return moved
-            
+    
+    def calc(self):
+        # linker
+        dx=float(self.x)
+        dy=self.hoch-self.y
+        a1=(dx*dx+dy*dy)**0.5
+        b1=self.lnull-a1
+        t1=int(self.ppcm*b1)
+        print(f"links  dx{dx:>5.2f}, dy{dy:>5.2f}, {a1:8.2f} {b1:8.2f}  {t1:>5}")
+        #rechter
+        dx=float(self.breit-self.x)
+        #dy= s.o.
+        a2=(dx*dx+dy*dy)**0.5
+        b2=self.lnull-a2
+        t2=int(self.ppcm*b2)
+        print(f"rechts dx{dx:>5.2f}, dy{dy:>5.2f}, {a2:8.2f} {b2:8.2f}  {t2:>5}")
+        return t1,t2
+        
+        
+        
     def switcha49(self,neu):
         self.a49 = neu & 3
         return self.a49
@@ -227,7 +256,7 @@ class stepper():
                     self.inp = ord(ch) - 48;
                 return
             else:
-                print(ch,end='\b')
+                print(ch,end='\b\b\b\b\b')
                 self.inpAkt=False
                 if ch=="b":         #scan (only from 0x08 to 0x77)
                     print("Scanning...",end=' ')
@@ -254,6 +283,8 @@ class stepper():
                 elif ch=="j":
                     self.irre = not self.irre
                     print("irre",self.irre)
+                elif ch=="k":      
+                    self.ppcm=float(self.inp)/10
  #               elif ch=="M":
  #                   self.msp=self.inp & 7
  #                   self.setmsp()
@@ -282,6 +313,18 @@ class stepper():
                     self.showayp()
                 elif ch=="W":
                     self.dowrite(pcf,self.inp)
+                elif ch=="x" or ch=="X":
+                    self.x=self.inp
+                    p0,p1=self.calc()
+                    if ch=="x":
+                        self.setpos(0,p0)
+                        self.setpos(1,p1)
+                elif ch=="y" or ch=="Y":
+                    self.y=self.inp
+                    p0,p1=self.calc()
+                    if ch=="y":
+                        self.setpos(0,p0)
+                        self.setpos(1,p1)
                 elif ch==" ":
                     self.disableall()                  
                 elif ch=="+":
@@ -320,7 +363,7 @@ class stepper():
                         if self.acttime !=0:
                             diff=time.ticks_diff(time.ticks_ms(),self.acttime)
                             if diff >100:
-                                print('Autozu')
+                                #print('Autozu')
                                 self.acttime =0
                                 self.disableall()
                     self.tastc -=1

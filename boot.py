@@ -20,7 +20,7 @@ for i in range(10):
     time.sleep(1)
 import webrepl
 webrepl.start()
-import bas
+#import bas
 
 
 

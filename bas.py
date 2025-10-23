@@ -158,7 +158,7 @@ def menu():
                     print ("Vergiss: sys.modules.pop('"+__name__+"', None)")
                     return
                 elif ch=="r":       #read 
-                    doread()
+                    readdev()
                 elif ch=="R":
                     print ("Killing me ...")
                     machine.reset()
@@ -174,7 +174,7 @@ def menu():
                     print ("sleep") 
                     dev.sleep()                   
                 elif ch=="w":
-                    dowrite(bytes([inp]))
+                    writedev(bytes([inp]))
                 elif ch=="x":                    
                     exec(open(py_files[inp]).read())
                 elif ch=="y":                    
