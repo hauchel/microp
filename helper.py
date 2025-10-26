@@ -1,5 +1,10 @@
 # some routines
 
+
+def bitw(b):
+    bits = "{:08b}".format(b)
+    return bits[:4]+' '+bits[4:]
+    
 class tast16():
     def __init__(self,conn,tadr=39):
         self.con=conn
@@ -23,10 +28,10 @@ class tast16():
         if sp==0: return 0
         self.con.writeto(self.tadr,bytes([0xf0]))
         b=self.con.readfrom(self.tadr,1)
-        zl=self.finn(b[0]>>4)
+        zl=self.finn(b[0]>>4) # 7 11 13 14
         #print ('f0 zle:',bitw(b[0]),'=',zl)
         if zl==0: return 0
-        return zl*4 + sp - 4
+        return  4*(4-sp)+zl
         
 class wlan():
     def __init__(self):

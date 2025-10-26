@@ -31,6 +31,18 @@ os.dupterm(None, 1)
 import esp
 esp.flash_size()
 
+#Formatierung
+print(f"'{zahl:>5}'")  # rechtsbündig, Breite 5 
+print(f"{pi:8.2f}")    # '    3.14' (Breite 8, 2 Nachkommastellen)
+
+
+#Neustart
+import sys
+sys.exit()
+
+#compiler
+mpy-cross myscript.py
+
 #exceptions
 try:
     1/0
@@ -71,16 +83,15 @@ imu = MPU6050(2,False)
 
 
 #Anschluss
-RST	pink		TXD	green
+RST	pink	TXD	green
 ADC			RXD	yell
 EN			SCL	yell
-IO16			SDA	grn
+IO16		SDA	grn
 IO14			IO00	ws
 IO12			IO16
 IO13
 VCC
 
- v1.12-334 and newer (including v1.13) require an ESP8266 module with 2MiB of flash or more, 	
 #setup go to pogramming Mode hold grey, press pink, release pink, release grey
 python -m esptool --port com3 erase_flash
 python -m esptool --port com3 --baud 460800 write_flash --flash_size=detect 0 ESP8266_GENERIC-20241129-v1.24.1.bin
@@ -92,6 +103,9 @@ Find IP (43)
 putHelper.bat 43
 putbas.bat 43
 reset
+
+
+mpy-cross myscript.py
 
 #QMC5883
 7.1 Setup
@@ -109,10 +123,18 @@ Standby Example
 Soft Reset Example
  Write Register 0AH by 0x80
 			10    128 
-			
-			
-ESP32
 
+			
+***ESP8266
+========			
+python -m esptool --port com4 erase_flash
+python -m esptool --port com4 --baud 460800 write_flash --flash_size=detect 0 ESP8266_GENERIC-20241129-v1.24.1.bin
+ampy --port COM4 put boot.py boot.py
+ampy --port COM4 put webrepl_cfg.py webrepl_cfg.py
+
+			
+***ESP32
+========
 Spannungsversorgung mindestens 500 mA!!!!, USB reicht oft nicht
 
 vor Aufruf GPIO00 auf Ground setzen und halten, da nachfolgend ein Reset (über USB) ausführt:
@@ -121,3 +143,15 @@ python -m esptool --chip esp32 --port com3 write_flash -z 0x1000 ESP32_GENERIC-2
 
 Reset ist EN,  dies wird aber über UART leichter gemacht, evtl mit Widerstand auf Ground ziehen
 
+
+#Notepad++ save,compile transfer 
+Plugins → NppExec → Execute…
+NPP_SAVE
+cmd /c "C:\scripts\a.cmd"
+set local RC = $(SYS.EXITCODE)
+echo Return code = $(RC)
+if $(RC) == 0
+    echo ✅ Success!
+else
+    echo ❌ Failed with code $(RC)
+endif

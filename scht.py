@@ -25,11 +25,9 @@ from helper import tast16
 
 class stepper():
     
-    def __init__(self):
-        print ("Howdy")
-        self.pinSDA=machine.Pin(4) #green
-        self.pinSCL=machine.Pin(5) #yell
-        self.con=I2C(scl=self.pinSCL, sda=self.pinSDA)
+    def __init__(self,con):
+        self.con=con
+        print ("Howdy",__name__)
         self.tast=tast16(self.con)  #
         self.tastc=0            # counter for tast query
         self.tastl=0            # last pressed
@@ -43,7 +41,6 @@ class stepper():
         self.out =[255,255]       # each PCF after start
         self.dirty=[True,True]
         self.pcfadr=[32 ,33]
-        self.a49 = 0              #  active 0..3 
         #config
         self.devpcf = [0,0,1,1]   # assign pcf
         self.bitE   = [0,4,0,4]
@@ -66,37 +63,11 @@ class stepper():
         self.lnull = (self.hoch*self.hoch + self.breit*self.breit/4)**0.5
         self.x=int(self.breit/2)
         self.y=int(self.hoch/2)
-        self.inpAkt=False
-        self.inp=0
+ 
         self.verbo= False
         self.irre=False
 #        self.msp=0  #Full Step
           
-    def hilf(self):
-        print("""
-    
-    ..a   select A49 (0 to 3) 
-    b     I2C Scan
-    ..g   goto waypoint
-    ..D   set device addr ..
-    e     enable 
-    <spc> disable
-    s     stop (soll=ist)
-    ..t   ticktime in us, 0=noticks
-    ..f   set I2C Frequency
-    ..i   set postion ist und soll
-    ..k   set ppcm/10
-    ..m   set msp 0 Full, 1 Half, 2 Quarter, 3 Eight, 7 sixteen
-    o     one move
-    ..p   set position soll
-    v     toggle verbose
-    j     toggle irre
-    q     quit
-    r     read waypoint file
-    w     show waypoints
-    ..x ..y
-    R ..W   direct read write to pcf
-    """)
 
     def bitw(self,b):
         bits = "{:08b}".format(b)
@@ -267,106 +238,132 @@ class stepper():
                     if self.tastc < 1:
                         self.tastc=10 
                         self.dotast()
-    def menu(self):   
-        # Aufruf nach kbhit
-        try:
-            ch=sys.stdin.read(1)  
-        except:
-            return False #unicode error
-        a=self.a49
-        pcf=self.devpcf[a]
-        try:
-            if ((ch >= '0') and (ch <= '9')):
-                print(ch,end='')
-                if (self.inpAkt) :
-                    self.inp = self.inp * 10 + (ord(ch) - 48);
-                else:
-                    self.inpAkt = True;
-                    self.inp = ord(ch) - 48;
-                return
+                        
+a49=0     
+pinSDA=machine.Pin(4) #green
+pinSCL=machine.Pin(5) #yell
+con=I2C(scl=self.pinSCL, sda=self.pinSDA)                   
+st=stepper(con)
+inpAkt=False
+inp=0
+
+def hilf():
+    print("""
+    
+    ..a   select A49 (0 to 3) 
+    b     I2C Scan
+    ..g   goto waypoint
+    ..D   set device addr ..
+    e     enable 
+    <spc> disable
+    s     stop (soll=ist)
+    ..t   ticktime in us, 0=noticks
+    ..f   set I2C Frequency
+    ..i   set postion ist und soll
+    ..k   set ppcm/10
+    ..m   set msp 0 Full, 1 Half, 2 Quarter, 3 Eight, 7 sixteen
+    o     one move
+    ..p   set position soll
+    v     toggle verbose
+    j     toggle irre
+    q     quit
+    r     read waypoint file
+    w     show waypoints
+    ..x ..y
+    R ..W   direct read write to pcf
+    """)
+
+def menu():   
+    # Aufruf nach kbhit
+    try:
+        ch=sys.stdin.read(1)  
+    except:
+        return False #unicode error
+    a=a49
+    pcf=devpcf[a]
+    try:
+        if ((ch >= '0') and (ch <= '9')):
+            print(ch,end='')
+            if (inpAkt) :
+                inp = inp * 10 + (ord(ch) - 48);
             else:
-                print(ch,end='\b\b\b\b\b')
-                self.inpAkt=False
-                if ch=="b":         #scan (only from 0x08 to 0x77)
-                    print("Scanning...",end=' ')
-                    sc=self.con.scan()
-                    if len(sc) > 0:
-                        self.devadr=sc[0]                        
-                    print(sc)
-                elif ch=="a":       # accel read
-                    a=self.switcha49(self.inp)
-                elif ch=="c":      
-                    pass
-                elif ch=="D":       #set device
-                    self.devadr=self.inp
-                elif ch=="e":
-                    self.enable(a)                  
-                elif ch=="f":
-                    print ("speed",self.inp)  
-                    con.init(self.pinSCL,self.pinSDA,freq=inp*1000)
-                elif ch=="g":       
-                    self.gowayp(self.inp)              
-                elif ch=="i":      
-                    self.istpos[a]=self.inp
-                    self.sollpos[a]=self.inp
-                elif ch=="j":
-                    self.irre = not self.irre
-                    print("irre",self.irre)
-                elif ch=="k":      
-                    self.ppcm=float(self.inp)/10
- #               elif ch=="M":
- #                   self.msp=self.inp & 7
- #                   self.setmsp()
- #                   self.info()
-                elif ch=="m":
-                   self.move(a)  
-                elif ch=="p":  
-                   self.setpos(a,self.inp)
-                elif ch=="q" or ch == '\x04':       # quit
-                    print ("restart with ",__name__+".action() ")
-                    print ("Vergiss: sys.modules.pop('"+__name__+"', None)")
-                    return True
-                elif ch=="r":
-                    self.readwayp()
-                elif ch=="R":       #read 
-                    self.pcfread(pcf)
-                elif ch=="s":
-                    self.sollpos=self.istpos
-                    self.disable(a)
-                elif ch=="t":       #ick
-                    self.ticktime=self.inp
-                elif ch=="v":       #ick
-                    self.verbo = not self.verbo
-                    print("verbo",self.verbo)
-                elif ch=="w":
-                    self.showayp()
-                elif ch=="W":
-                    self.dowrite(pcf,self.inp)
-                elif ch=="x" or ch=="X":
-                    self.x=self.inp
-                    p0,p1=self.calc()
-                    if ch=="x":
-                        self.setpos(0,p0)
-                        self.setpos(1,p1)
-                elif ch=="y" or ch=="Y":
-                    self.y=self.inp
-                    p0,p1=self.calc()
-                    if ch=="y":
-                        self.setpos(0,p0)
-                        self.setpos(1,p1)
-                elif ch==" ":
-                    self.disableall()                  
-                elif ch=="+":
-                    self.setpos(a,self.sollpos[a]+self.inp)
-                elif ch=="-":
-                     self.setpos(a,self.sollpos[a]-self.inp)
-                else:
-                    self.hilf()
-            for p in range (len(self.pcfadr)):
-                if self.dirty[p]:
-                    self.dowrite(p,self.out[p])
-                    self.dirty[p]=False                    
-            self.info(a)
-        except Exception as inst:
-            sys.print_exception(inst)   
-        return False
+                inpAkt = True;
+                inp = ord(ch) - 48;
+            return
+        else:
+            print(ch,end='\b\b\b\b\b')
+            inpAkt=False
+            if ch=="b":         #scan (only from 0x08 to 0x77)
+                print("Scanning...",end=' ')
+                sc=con.scan()              
+                print(sc)
+            elif ch=="a":       # accel read
+                a=inp
+            elif ch=="c":      
+                pass
+            elif ch=="e":
+                st.enable(a)                  
+            elif ch=="f":
+                print ("speed",inp)  
+                con.init(pinSCL,pinSDA,freq=inp*1000)
+            elif ch=="g":       
+                st.gowayp(inp)              
+            elif ch=="i":      
+                st.istpos[a]=inp
+                st.sollpos[a]=inp
+            elif ch=="j":
+                st.irre = not st.irre
+                print("irre",st.irre)
+            elif ch=="k":      
+                st.ppcm=float(inp)/10
+            elif ch=="m":
+               st.move(a)  
+            elif ch=="p":  
+               st.setpos(a,inp)
+            elif ch=="q" or ch == '\x04':       # quit
+                print ("restart with ",__name__+".menu() ")
+                return True
+            elif ch=="r":
+                st.readwayp()
+            elif ch=="R":       #read 
+                st.pcfread(pcf)
+            elif ch=="s":
+                st.sollpos[a]=st.istpos[a]
+                st.disable(a)
+            elif ch=="t":       #ick
+                st.ticktime=inp
+            elif ch=="v":       #ick
+                st.verbo = not st.verbo
+                print("verbo",st.verbo)
+            elif ch=="w":
+                st.showayp()
+            elif ch=="x" or ch=="X":
+                st.x=inp
+                p0,p1=st.calc()
+                if ch=="x":
+                    st.setpos(0,p0)
+                    st.setpos(1,p1)
+            elif ch=="y" or ch=="Y":
+                st.y=inp
+                p0,p1=st.calc()
+                if ch=="y":
+                    st.setpos(0,p0)
+                    st.setpos(1,p1)
+            elif ch==" ":
+                st.disableall()                  
+            elif ch=="+":
+                st.setpos(a,st.sollpos[a]+inp)
+            elif ch=="-":
+                 st.setpos(a,st.sollpos[a]-inp)
+            else:
+                hilf()
+        for p in range (len(st.pcfadr)):
+            if st.dirty[p]:
+                st.dowrite(p,st.out[p])
+                st.dirty[p]=False                    
+        st.info(a)
+    except Exception as inst:
+        sys.print_exception(inst)   
+    st.action()
+
+menu()

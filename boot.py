@@ -11,7 +11,7 @@ wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
 wlan.connect('FRITZ!HH','47114711')
 #wlan.connect('NETGEAR','12345678')
-hots =network.WLAN(network.AP_IF)
+hots=network.WLAN(network.AP_IF)
 hots.active(False)
 for i in range(10):
     print ("Wait Connect",i)
@@ -20,7 +20,7 @@ for i in range(10):
     time.sleep(1)
 import webrepl
 webrepl.start()
-#import bas
+import tstep
 
 
 
