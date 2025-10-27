@@ -43,14 +43,14 @@ class stepper():
         self.bitE   = [0,4,0,4]
         self.bitS   = [1,5,1,5]
         self.bitR   = [2,6,2,6]
-        self.dreh   = [0,1,0,1]   # richt negiert wenn 1
+        self.dreh   = [0,1,1,0]   # richt negiert wenn 1
         # 
         self.sollpos= [0,0,0,0]   # nur über setpos ändern sonst.. 
         self.istpos = [0,0,0,0]
         self.richt =  [1,1,1,1]    #+-1 only
         
         # waypoints
-        self.readwayp()
+        #self.readwayp()
 
  
         self.verbo= False
@@ -163,15 +163,8 @@ class stepper():
                 self.move(a)
         return moved
     
-    def dotast(self):
-        t=self.tast.taste()
-        if t==self.tastl: return
-        self.tastl=t
-        if t!=0:
-            self.gowayp(t)
-
     def action(self):
-        # loops until key pressed
+        # loops until key pressed or taste (+128)
         while True:
             if self.poller.poll(0):
                 try:
@@ -194,5 +187,7 @@ class stepper():
                     self.tastc -=1
                     if self.tastc < 1:
                         self.tastc=10 
-                        self.dotast()
+                        t=self.tast.taste()
+                        if t!= 0:
+                            return chr(t+128)
 

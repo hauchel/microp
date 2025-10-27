@@ -3,83 +3,74 @@ import machine
 import sys
 import gc
 
+
+class calc2():
+    def __init__(self):
+        print ("Howdy",__name__)
+        # Geometrie
+        self.breit=22.0  # breite in cm
+        self.hoch=19.0
+        self.ppcm= 35.0  #pulse per cm Faden
+        self.lnull = (self.hoch*self.hoch + self.breit*self.breit/4)**0.5
+        self.x=int(self.breit/2)
+        self.y=0
+ 
+    def docalc(self):
+        # linker
+        dx=float(self.x)
+        dy=self.hoch-self.y
+        a1=(dx*dx+dy*dy)**0.5
+        b1=self.lnull-a1
+        t1=int(self.ppcm*b1)
+        #print(f"links  dx{dx:>6.2f}, dy{dy:>6.2f}, l{a1:6.2f}, {b1:8.2f}  {t1:>5}")
+        #rechter
+        dx=float(self.breit-self.x)
+        #dy= s.o.
+        a2=(dx*dx+dy*dy)**0.5
+        b2=self.lnull-a2
+        t2=int(self.ppcm*b2)
+        #print(f"rechts dx{dx:>6.2f}, dy{dy:>6.2f}, l{a2:6.2f}, {b2:8.2f}  {t2:>5}")
+        return t1,t2
+        
 class calc4():
     # 4 
     def __init__(self):
-        print ("Howdy Calc",__name__)
+        print ("Howdy",__name__)
         # Geometrie
-        self.breit = 46.0  # x breite in cm
-        self.lang  = 28.0
-        self.hoch  = 14.0
+        self.breit=22.0  # breite in cm
+        self.hoch=19.0
         self.ppcm= 35.0  #pulse per cm Faden
-        self.zero()
-    
-    def zero(self):
-        print("Nullpos")
+        self.lnull = (self.hoch*self.hoch + self.breit*self.breit/4)**0.5
         self.x=int(self.breit/2)
-        self.y=int(self.lang/2)
-        self.z=self.hoch
-    
-    def abst(self,dx,dy,dz):
-        dx2=float(dx*dx)
-        dy2=float(dy*dy)
-        dz2=float(dz*dz)
-        return (dx2+dy2+dz2)**0.5
-        
+        self.y=0
+        self.z=0
+ 
     def docalc(self):
-        # gerechnet wird l=Länge des Fadens für 4 Stepper
-        # abhängig von .x und .y .z
-        # dazu offset des Plättchens 2*2 cm in xy
-        # M0 bei breit , 0
-        ofs=1
-        dx=self.breit-self.x + ofs       
-        dy=self.y -ofs
-        dz=self.z
-        a0=self.abst(dx,dy,dz)
-        t0=int(self.ppcm*a0)
-        print(f"M0  dx{dx:>5}, dy{dy:>5}, l{a0:6.2f}, {t0:>5}")
-        # M1 bei breit, hoch
-        dx=self.breit-self.x  + ofs      
-        dy=self.lang- self.y + ofs
-        a1=self.abst(dx,dy,dz)
-        t1=int(self.ppcm*a1)
-        print(f"M1  dx{dx:>5}, dy{dy:>5}, l{a1:6.2f}, {t1:>5}")
-        # M2 bei 0,0
-        dx=self.x - ofs
-        dy=self.y - ofs
-        a2=self.abst(dx,dy,dz)
-        t2=int(self.ppcm*a2)
-        print(f"M2  dx{dx:>5}, dy{dy:>5}, l{a2:6.2f}, {t2:>5}")
-        # M3 bei 0,hoch
-        dx=self.x - ofs
-        dy=self.lang- self.y + ofs
-        a3=self.abst(dx,dy,dz)
-        t3=int(self.ppcm*a3)
-        print(f"M3  dx{dx:>5}, dy{dy:>5}, l{a3:6.2f}, {t3:>5}")
-        return t0,t1,t2,t3        
-
+        # linker
+        dx=float(self.x)
+        dy=self.hoch-self.y
+        a1=(dx*dx+dy*dy)**0.5
+        b1=self.lnull-a1
+        t1=int(self.ppcm*b1)
+        #print(f"links  dx{dx:>6.2f}, dy{dy:>6.2f}, l{a1:6.2f}, {b1:8.2f}  {t1:>5}")
+        #rechter
+        dx=float(self.breit-self.x)
+        #dy= s.o.
+        a2=(dx*dx+dy*dy)**0.5
+        b2=self.lnull-a2
+        t2=int(self.ppcm*b2)
+        #print(f"rechts dx{dx:>6.2f}, dy{dy:>6.2f}, l{a2:6.2f}, {b2:8.2f}  {t2:>5}")
+        return t1,t2        
 
 a=0     
 pinSDA=machine.Pin(4) #green
 pinSCL=machine.Pin(5) #yell
 con=machine.I2C(scl=pinSCL, sda=pinSDA)                   
 st=stepper(con)
-st.dreh   = [1,0,0,1]  
-calc=calc4()
-anf=calc.docalc()
-for i in range(len(anf)):
-    st.istpos[i]=anf[i]
-    st.sollpos[i]=anf[i]              
-
+calc=calc2()
 inpAkt=False
 inp=0
 
-def nullpos():
-    calc.zero()
-    anf=calc.docalc()
-    for i in range(len(anf)):
-        st.istpos[i]=anf[i]
-        st.sollpos[i]=anf[i]              
     
 def info(a):
     gc.collect()
@@ -87,7 +78,7 @@ def info(a):
         pcf=st.devpcf[a]
         print("\bA",a,"Dev",st.pcfadr[pcf],"Out",st.out[pcf],"Soll",st.sollpos[a],"Ist",st.istpos[a],"Ri",st.richt[a],f"ppcm {calc.ppcm:4.1f} Tick {st.ticktime}")
     else:
-        print(f"{a}A, {calc.x:>3}x, {calc.y:>3}y, {calc.z:>3}z,",end='   ')
+        print(f"{a}A, {calc.x:>3}x, {calc.y:>3}y,",end='   ')
         for s in st.sollpos:
             print (f"{s:>4}",end=' ')
         print()
@@ -114,7 +105,7 @@ def hilf():
     q     quit
     r     read waypoint file
     w     show waypoints
-    ..x ..y
+    ..x ..y ..z
     R ..W   direct read write to pcf
     """)
 
@@ -177,8 +168,6 @@ def menu(ch):
                 st.ppcm=float(inp)/10
             elif ch=="m":
                st.move(a)  
-            elif ch=="n":
-               nullpos()
             elif ch=="p":  
                st.setpos(a,inp)
             elif ch=="q" or ch == '\x04':       # quit
@@ -199,22 +188,17 @@ def menu(ch):
             elif ch=="w":
                 st.showayp()
             elif ch=="x" or ch=="X":
-                calc.x=inp
-                res=calc.docalc()
+                st.x=inp
+                p0,p1=calc.docalc()
                 if ch=="x":
-                    for i in range(len(res)):
-                        st.setpos(i,res[i])
+                    st.setpos(0,p0)
+                    st.setpos(1,p1)
             elif ch=="y" or ch=="Y":
-                calc.y=inp
-                res=calc.docalc()
+                st.y=inp
+                p0,p1=calc.docalc()
                 if ch=="y":
-                    for i in range(len(res)):
-                        st.setpos(i,res[i])
-            elif ch=="z":
-                calc.z=inp
-                res=calc.docalc()
-                for i in range(len(res)):
-                    st.setpos(i,res[i])                        
+                    st.setpos(0,p0)
+                    st.setpos(1,p1)
             elif ch==" ":
                 st.disableall()                  
             elif ch=="+":
