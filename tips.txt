@@ -73,9 +73,23 @@ c.writeto(32, b'\xff')¶   #   devaddr, buf
 c.writeto_mem(39,0,b'\0')
 c.readfrom_mem(devaddr, memaddr, nbytes) 
 c.
+
+# Pin Mapping
+https://wolles-elektronikkiste.de/wemos-d1-mini-boards
  
  
-# nrf24l01
+# nrf24L01
+https://www.az-delivery.de/en/blogs/azdelivery-blog-fur-arduino-und-raspberry-pi/avr-goes-esp-teil-1
+
+Top View:
+
+       rot	2  VCC     GND  1  schw
+D2	4  blau	4  CSN     CE   3  weis    D1  5
+D7 13  grn	6  MOSI    SCK  5  gelb    D5 14
+-     blau	8  IRQ     MISO 7  weis    D6 12
+
+
+
 
 #MPU6050  
 from mpu6050 import MPU6050
@@ -127,9 +141,9 @@ Soft Reset Example
 			
 ***ESP8266
 ========			
-python -m esptool --port com4 erase_flash
+python -m esptool --port com3 erase_flash
 python -m esptool --port com4 --baud 460800 write_flash --flash_size=detect 0 ESP8266_GENERIC-20241129-v1.24.1.bin
-ampy --port COM4 put boot.py boot.py
+ampy --port COM3 put boot.py boot.py
 ampy --port COM4 put webrepl_cfg.py webrepl_cfg.py
 
 			
@@ -141,8 +155,13 @@ vor Aufruf GPIO00 auf Ground setzen und halten, da nachfolgend ein Reset (über 
 python -m esptool --port com3 --chip esp32 erase_flash
 python -m esptool --chip esp32 --port com3 write_flash -z 0x1000 ESP32_GENERIC-20241129-v1.24.1.bin
 
+
 Reset ist EN,  dies wird aber über UART leichter gemacht, evtl mit Widerstand auf Ground ziehen
 
+beautify
+
+flake8
+black
 
 #Notepad++ save,compile transfer 
 Plugins → NppExec → Execute…
