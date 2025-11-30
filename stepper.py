@@ -49,7 +49,7 @@ class stepper():
                 self.pcfadr.remove(p)
 
         # config
-        self.devpcf = [0, 0, 1, 1]  # assign pcf
+        self.devpcf = [0, 0, 1, 1]  # assign pcf to a49
         self.bitE = [0, 4, 0, 4]
         self.bitS = [1, 5, 1, 5]
         self.bitR = [2, 6, 2, 6]
@@ -58,9 +58,6 @@ class stepper():
         self.sollpos = [0, 0, 0, 0]  # nur über setpos ändern sonst..
         self.istpos = [0, 0, 0, 0]
         self.richt = [1, 1, 1, 1]  # +-1 only
-
-        # waypoints
-        # self.readwayp()
 
         self.verbo = False
         self.irre = False
@@ -129,37 +126,6 @@ class stepper():
             print("soll gesetzt")
             self.info(a)
 
-    def showayp(self):
-        i = 0
-        for wp in self.wayp:
-            print(f"{i:>3}", end="  ")
-            for s in wp:
-                print(f"{s:>4}", end=" ")
-            i += 1
-            print()
-
-    def readwayp(self):
-        self.wayp = []
-        try:
-            with open("wayp.txt", "r") as file:
-                for line in file:
-                    comp = line.split()  #
-                    nums = [int(x) for x in comp]
-                    self.wayp.append(nums)
-        except Exception as inst:
-            sys.print_exception(inst)
-            self.wayp = [[10, 10, 0, 0], [100, 10], [10, 100, 0, 0], [100, 100]]
-        self.showayp()
-
-    def gowayp(self, w):
-        print("waypoint", w)
-        try:
-            wps = self.wayp[w]
-            for a in range(len(wps)):
-                self.setpos(a, wps[a])
-        except Exception as inst:
-            sys.print_exception(inst)
-
     def move(self, a):
         pcf = self.devpcf[a]
         raus = self.out[pcf] & ~(1 << self.bitS[a])  # lo
@@ -177,9 +143,19 @@ class stepper():
                 # if self.verbo: print('moveall',a,self.istpos[a],self.sollpos[a])
                 self.move(a)
         return moved
+    
+    def polle(self):
+        if self.poller.poll(0):
+            try:
+                return sys.stdin.read(1)
+            except:
+                return "?"  # unicode error
+        else:
+            return None
 
     def action(self):
-        # loops until key pressed or taste (+128)
+        # loops until key pressed or taste (+128) or eomove (
+        if self.verbo: print("Act")
         while True:
             if self.poller.poll(0):
                 try:
@@ -192,13 +168,14 @@ class stepper():
                     self.lasttick = time.ticks_us()
                     if self.moveall():
                         self.acttime = time.ticks_ms()
-                    else:
+                    else:  # nix to move
                         if self.acttime != 0:
                             diff = time.ticks_diff(time.ticks_ms(), self.acttime)
                             if diff > 100:
                                 # print('Autozu')
                                 self.acttime = 0
                                 self.disableall()
+                                return('!')
                     if self.taston:
                         self.tastc -= 1
                         if self.tastc < 1:

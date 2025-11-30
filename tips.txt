@@ -82,13 +82,19 @@ https://wolles-elektronikkiste.de/wemos-d1-mini-boards
 https://www.az-delivery.de/en/blogs/azdelivery-blog-fur-arduino-und-raspberry-pi/avr-goes-esp-teil-1
 
 Top View:
-
+  GPIO                               GPIO
        rot	2  VCC     GND  1  schw
-D2	4  blau	4  CSN     CE   3  weis    D1  5
-D7 13  grn	6  MOSI    SCK  5  gelb    D5 14
--     blau	8  IRQ     MISO 7  weis    D6 12
+	4  blau	4  CSN     CE   3  weis    5
+   13  grn	6  MOSI    SCK  5  gelb   14
+-     blau	8  IRQ     MISO 7  weis   12
+
+IRQ auf 2
+CE  auf 0
+CSN auf 15
 
 
+CE High schaltet Radio an
+CSN Low SPI enable
 
 
 #MPU6050  

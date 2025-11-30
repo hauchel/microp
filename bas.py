@@ -7,7 +7,6 @@ import machine
 import os
 from machine import I2C
 from machine import Pin
-from helper import tast16
 
 
 print ("Howdy",__name__)
@@ -22,8 +21,6 @@ pinSCL=machine.Pin(5) #yell
 con=I2C(scl=pinSCL, sda=pinSDA)
 wlan = network.WLAN(network.STA_IF)
 py_files = []
-
-tast=tast16(con)
 
 def info():
     gc.collect()

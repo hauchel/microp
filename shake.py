@@ -2,86 +2,62 @@ from stepper import stepper
 import machine
 import sys
 import gc
-
-
-class calc2():
-    def __init__(self):
-        print ("Howdy",__name__)
-        # Geometrie
-        self.breit=18.0  # breite in cm
-        self.hoch=22.5
-        self.ppcm= 35.0  #pulse per cm Faden
-        self.lnull = (self.hoch*self.hoch + self.breit*self.breit/4)**0.5
-        self.zero()
-    
-    def zero(self):
-        print("zero")
-        self.x=int(self.breit*5) # in mm 
-        self.y=0
- 
-    def docalc(self):
-        # linker
-        dx=float(self.x)/10.0
-        dy=self.hoch-float(self.y)/10.0
-        a1=(dx*dx+dy*dy)**0.5
-        b1=self.lnull-a1
-        t1=int(self.ppcm*b1)
-        #print(f"links  dx{dx:>6.2f}, dy{dy:>6.2f}, l{a1:6.2f}, {b1:8.2f}  {t1:>5}")
-        #rechter
-        dx=self.breit-float(self.x)/10.0
-        #dy= s.o.
-        a2=(dx*dx+dy*dy)**0.5
-        b2=self.lnull-a2
-        t2=int(self.ppcm*b2)
-        #print(f"rechts dx{dx:>6.2f}, dy{dy:>6.2f}, l{a2:6.2f}, {b2:8.2f}  {t2:>5}")
-        return t1,t2
-        
-class waypoints():
-    def __init__(self):
-        print ("Howdy",__name__)
-        self.wayp=[]
-    
-    def showayp(self):
-        i = 0
-        for wp in self.wayp:
-            print(f"{i:>3}", end="  ")
-            for s in wp:
-                print(f"{s:>4}", end=" ")
-            i += 1
-            print()
-    
-    def clearwayp(self):
-        self.wayp=[]
-
-    def addwayp(self,nums):
-        self.wayp.append(nums)
-        
-    def readwayp(self):
-        self.wayp = []
-        try:
-            with open("wayp.txt", "r") as file:
-                for line in file:
-                    comp = line.split()  #
-                    nums = [int(x) for x in comp]
-                    self.wayp.append(nums)
-        except Exception as inst:
-            sys.print_exception(inst)
-            self.wayp = [[10, 10, 0, 0], [100, 10], [10, 100, 0, 0], [100, 100]]
-        self.showayp()
-
+import time
 
 a=0     
 pinSDA=machine.Pin(4) #green
 pinSCL=machine.Pin(5) #yell
 con=machine.I2C(scl=pinSCL, sda=pinSDA)                   
 st=stepper(con,False)
-calc=calc2()
-wayp=waypoints()
 inpAkt=False
 inp=0
 stack=[]
 dd=5
 
+
+class makro():
+    def __init__(self):
+        print("Howdy", __name__)
+        self.maktxt=['5555t','0p']
+        self.makakt=''
+    
+    def makget(self):
+        if self.makakt=='': return None
+        else:
+            c=self.makakt[0]
+            self.makakt=self.makakt[1:]
+            return c
+    
+    def maksel(self,n):
+        self.makakt=self.maktxt[n]
+        print ('Makro',n,self.makakt)
+
+    def makstop(self):
+        self.makakt=''
+        print("makstop")
+        
+    def makshow(self):
+        i = 0
+        for m in self.maktxt:
+            print(f"{i:>3}  {m}<")
+            i += 1
+        
+    def makread(self):
+        self.maktxt = ['0!'] # gleuch Zeilennummer in Datei 
+        try:
+            with open("makros.txt", "r") as file:
+                for line in file:
+                    self.maktxt.append(line.rstrip('\n \r'))
+        except Exception as inst:
+            sys.print_exception(inst)      
+        self.makshow()
+        
+        
+   
+   
+mak=makro()  
+mak.makread() 
+   
 def nullpos():
     calc.zero()
     anf = calc.docalc()
@@ -93,9 +69,9 @@ def info(a):
     gc.collect()
     if st.verbo:
         pcf=st.devpcf[a]
-        print("\bA",a,"Dev",st.pcfadr[pcf],"Out",st.out[pcf],"Soll",st.sollpos[a],"Ist",st.istpos[a],"Ri",st.richt[a],f"ppcm {calc.ppcm:4.1f} lnull {calc.lnull:4.1f},  Tick {st.ticktime}")
+        print("\bA",a,"Dev",st.pcfadr[pcf],"Out",st.out[pcf],"Soll",st.sollpos[a],"Ist",st.istpos[a],"Ri",st.richt[a],f"Tick {st.ticktime}")
     else:
-        print(f"{a}A, {calc.x:>3}x, {calc.y:>3}y,",end='   ')
+        print(f"{a}A,",end='   ')
         for s in st.sollpos:
             print (f"{s:>4}",end=' ')
         print()
@@ -114,13 +90,13 @@ def hilf():
     ..f   set I2C Frequency
     ..i   set postion ist und soll
     ..k   set ppcm/10
-    ..m   # not used set msp 0 Full, 1 Half, 2 Quarter, 3 Eight, 7 sixteen
+    ..m   aktivate makro ..
     ..p   set position soll
     v     toggle verbose
     j     toggle irre
     q     quit
     r     read waypoint file
-    w     show waypoints
+    ..w   warte .. sekunden
     ..x ..y 
     ..<  ..> change pos by ..
     ..+  ..-
@@ -140,65 +116,8 @@ def tasti(b):
     else:
         print("tasti",b)
 
-def approx(x0, y0, x1, y1, step=2):
-    #print("approx",x0,y0,x1,y1)
-    points = []
-    dx = x1 - x0
-    dy = y1 - y0
 
-    # Maximale Achsendifferenz = "Länge" der Linie in Gitterschritten
-    max_delta = max(abs(dx), abs(dy))
-
-    # Anzahl der Schritte ungefähr = max_delta / Schrittweite
-    n_steps = max(1, max_delta // step)
-
-    for i in range(n_steps + 1):
-        # Parameter t von 0 bis 1
-        t_numer = i
-        t_denom = n_steps
-
-        # Interpolation (ganzzahlig)
-        x = x0 + (dx * t_numer + t_denom // 2) // t_denom
-        y = y0 + (dy * t_numer + t_denom // 2) // t_denom
-
-        if not points or (x, y) != points[-1]:
-            points.append((x, y))
-
-    return points
-
-def calcwayp():
-    global stack
-    global dd
-    print(stack,'mit',dd)
-    le=len(stack)
-    if le < 4:
-        print("stack!")
-        return
-    erg=approx(stack[le-4],stack[le-3],stack[le-2],stack[le-1],dd)
-    print(erg)
-    stack = stack[:-4]
-    wayp.clearwayp()
-    xsav=calc.x
-    ysav=calc.y
-    for po in erg:
-        calc.x=po[0]
-        calc.y=po[1]
-        p0,p1=calc.docalc()
-        #print(p0,p1)
-        wayp.addwayp([p0,p1])
-    calc.x=xsav
-    calc.y=ysav
-
-def gowayp(w):
-    print("waypoint", w)
-    try:
-        wps = wayp.wayp[w]
-        for a in range(len(wps)):
-            st.setpos(a, wps[a])
-    except Exception as inst:
-        sys.print_exception(inst)
-
-def menu(ch):   
+def menu(ch,inmak):   
     global a        
     global inpAkt
     global inp
@@ -244,19 +163,14 @@ def menu(ch):
             elif ch=="k":      
                 st.ppcm=float(inp)/10
             elif ch=="m":
-               st.move(a)  
+                mak.maksel(inp)  
+            elif ch=="M":
+                mak.makread()  
             elif ch == "n":
                 nullpos()            
-            elif ch == "o":
-                stack.append(inp)
-                calcwayp()
             elif ch == "O":
                 dd=inp
                 print('O',dd)                
-            elif ch == "z":
-                stack.append( calc.x)
-                stack.append( calc.y)
-                print(stack)
             elif ch=="p":  
                st.setpos(a,inp)
             elif ch=="q" or ch == '\x04':       # quit
@@ -275,7 +189,7 @@ def menu(ch):
                 st.verbo = not st.verbo
                 print("verbo",st.verbo)
             elif ch=="w":
-                wayp.showayp()
+                time.sleep(inp)
             elif ch=="x" or ch=="X":
                 calc.x=inp
                 p0,p1=calc.docalc()
@@ -289,7 +203,9 @@ def menu(ch):
                     st.setpos(0,p0)
                     st.setpos(1,p1)
             elif ch==" ":
-                st.disableall()               
+                if not inmak: st.disableall()  #space in Makro
+            elif ch=="!":
+                print("!")
             elif ch==",":
                 stack.append(inp)
                 return
@@ -308,6 +224,7 @@ def menu(ch):
             else:
                 hilf()
         st.dirtywrite()
+        if inmak: return
         info(a)
     except Exception as inst:
         sys.print_exception(inst)   
@@ -315,8 +232,17 @@ def menu(ch):
 
 def loop():
     while True:
+        ch=mak.makget()
+        if ch is not None:
+            #print('exe',ch)
+            menu(ch,True)
+            if st.polle() is not None:
+                print("Key during Makro")
+                mak.makstop()
+            if ch != '!': continue
+            print("Makpaus")
         ch=st.action()
-        if menu(ch): break
+        if menu(ch,False): break
     print ("Ende")
 
 print(__name__,':')    
