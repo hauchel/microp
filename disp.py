@@ -7,8 +7,6 @@ import ssd1306
 import framebuf
 
 
-print ("Howdy",__name__)
-
 # some globals    
 
 pinSDA=machine.Pin(4) #green
@@ -18,9 +16,40 @@ x = 0
 y = 0
 hoch=32
 breit=32
-display = ssd1306.SSD1306_I2C(128, 64, con)
-display.text('Hello!', 0, 0, 1)
-display.show()
+
+
+class displ():
+    def __init__(self,con):
+        print("Howdy", __name__)
+        self.disp = ssd1306.SSD1306_I2C(128, 64, con)
+        self.disp.rotate(False)
+        self.disp.text('disp!', 0, 0, 1)
+        self.disp.show()
+   
+   def smile(self,x,y):
+    # Load smiley face image and disp
+    # The below bytearray is a buffer representation of a 32x32 smiley face image.
+        smiley = bytearray(b'\x00?\xfc\x00\x00\xff\xff\x00\x03\xff\xff\xc0\x07\xe0\x07\xe0\x0f\x80\x01\xf0\x1f\x00\x00\xf8>\x00\x00|<\x00\x00<x\x00\x00\x1epx\x1e\x0e\xf0x\x1e\x0f\xe0x\x1e\x07\xe0x\x1e\x07\xe0\x00\x00\x07\xe0\x00\x00\x07\xe0\x00\x00\x07\xe1\xc0\x03\x87\xe1\xc0\x03\x87\xe1\xc0\x03\x87\xe1\xe0\x07\x87\xe0\xf0\x0f\x07\xf0\xf8\x1f\x0fp\x7f\xfe\x0ex?\xfc\x1e<\x0f\xf0<>\x00\x00|\x1f\x00\x00\xf8\x0f\x80\x01\xf0\x07\xe0\x07\xe0\x03\xff\xff\xc0\x00\xff\xff\x00\x00?\xfc\x00')
+        fb = framebuf.FrameBuffer(smiley, breit, hoch, framebuf.MONO_HLSB) # load the 32x32 image binary data in to a FrameBuffer
+        self.disp.blit(fb, x, y) #
+        self.disp.show()   
+        
+    def fill(self,col)
+        self.disp.fill(col)
+        self.disp.show()
+
+    
+    def zeigs(self):
+        m=123
+        self.disp.text(f'Eins!{m:>5}', 0, 0, 1)
+        self.disp.text('Twoooo!', 0, 10, 1)
+        self.disp.text('Three!', 0, 20, 1)
+        self.disp.text('Eins!', 0, 30, 1)
+        self.disp.text('Twoooo!', 0, 40, 1)
+        self.disp.text('Three!', 0, 50, 1)
+        self.disp.show()
+
+disp=displ(con)
 
 def info():
     gc.collect()
@@ -28,9 +57,9 @@ def info():
   
 def hilfe():
     print("""
-    a     reset_cause
+    a     
     b     I2C Scan
-    ..d   set device ..
+    ..c   clear screen 
     ..f   set I2C Frequency
     ..h ..l ..i  .. High/Low/Input
     n     toggle network active
@@ -47,14 +76,6 @@ def hilfe():
     
     """)
 
-def smile():
-# Load smiley face image and display
-# The below bytearray is a buffer representation of a 32x32 smiley face image.
-    smiley = bytearray(b'\x00?\xfc\x00\x00\xff\xff\x00\x03\xff\xff\xc0\x07\xe0\x07\xe0\x0f\x80\x01\xf0\x1f\x00\x00\xf8>\x00\x00|<\x00\x00<x\x00\x00\x1epx\x1e\x0e\xf0x\x1e\x0f\xe0x\x1e\x07\xe0x\x1e\x07\xe0\x00\x00\x07\xe0\x00\x00\x07\xe0\x00\x00\x07\xe1\xc0\x03\x87\xe1\xc0\x03\x87\xe1\xc0\x03\x87\xe1\xe0\x07\x87\xe0\xf0\x0f\x07\xf0\xf8\x1f\x0fp\x7f\xfe\x0ex?\xfc\x1e<\x0f\xf0<>\x00\x00|\x1f\x00\x00\xf8\x0f\x80\x01\xf0\x07\xe0\x07\xe0\x03\xff\xff\xc0\x00\xff\xff\x00\x00?\xfc\x00')
-    fb = framebuf.FrameBuffer(smiley, breit, hoch, framebuf.MONO_HLSB) # load the 32x32 image binary data in to a FrameBuffer
-    display.blit(fb, x, y) #
-    display.show()    
-    
 def menu():   
     global x,y,breit,hoch
     inpAkt=False
@@ -76,12 +97,14 @@ def menu():
             inpAkt=False
             try:
                 if ch=="b":
-                    breit=inp
+                    print("Scanning...",end=' ')
+                    sc=con.scan()              
+                    print(sc)                    
                 elif ch=="a":       #
-                    reset_info()
-                elif ch=="c":       #set count
-                    display.fill(0)                         # fill entire screen with colour=0
-                    display.show()
+                    pass          
+                elif ch=="c":     
+                    disp.fill(inp)
+                    disp.show()
                 elif ch=="f":
                     print ("speed",inp)  
                     con.init(pinSCL,pinSDA,freq=inp*1000)
@@ -89,19 +112,24 @@ def menu():
                     hoch=inp               
                 elif ch=="q" or ch == '\x04':       
                     print ("\brestart with ",__name__+".menu() ")
-                    print ("Vergiss: sys.modules.pop('"+__name__+"', None)")
                     return
                 elif ch=="i":
                     smile()
+                elif ch=="r":
+                    disp.disp.rotate(False)
+                elif ch=="R":
+                    disp.rotate(True)
                 elif ch=="s":
-                    display.show()
+                    disp.show()
                 elif ch=="t":
-                    display.text('Text',x,y)                    
-                    display.show()
+                    disp.text('Text',x,y)                    
+                    disp.show()
                 elif ch=="x":       #text
                     x=inp
                 elif ch=="y":       #text
                     y=inp
+                elif ch=="z":       #text
+                    zeigs()                    
                 else:
                     hilfe()
             except Exception as inst:

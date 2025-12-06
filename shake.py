@@ -1,59 +1,26 @@
-from stepper import stepper
 import machine
 import sys
 import gc
 import time
+import ssd1306
+from stepper import stepper
+from makro import makro
 
-a=0     
-pinSDA=machine.Pin(4) #green
-pinSCL=machine.Pin(5) #yell
-con=machine.I2C(scl=pinSCL, sda=pinSDA)                   
-st=stepper(con,False)
+
 inpAkt=False
 inp=0
 stack=[]
-dd=5
+a=0
+     
+pinSDA=machine.Pin(4) #green
+pinSCL=machine.Pin(5) #yell
+con=machine.I2C(scl=pinSCL, sda=pinSDA)                   
 
+st=stepper(con,True)
 
-class makro():
-    def __init__(self):
-        print("Howdy", __name__)
-        self.maktxt=['5555t','0p']
-        self.makakt=''
-    
-    def makget(self):
-        if self.makakt=='': return None
-        else:
-            c=self.makakt[0]
-            self.makakt=self.makakt[1:]
-            return c
-    
-    def maksel(self,n):
-        self.makakt=self.maktxt[n]
-        print ('Makro',n,self.makakt)
-
-    def makstop(self):
-        self.makakt=''
-        print("makstop")
-        
-    def makshow(self):
-        i = 0
-        for m in self.maktxt:
-            print(f"{i:>3}  {m}<")
-            i += 1
-        
-    def makread(self):
-        self.maktxt = ['0!'] # gleuch Zeilennummer in Datei 
-        try:
-            with open("makros.txt", "r") as file:
-                for line in file:
-                    self.maktxt.append(line.rstrip('\n \r'))
-        except Exception as inst:
-            sys.print_exception(inst)      
-        self.makshow()
-        
-        
-   
+disp = ssd1306.SSD1306_I2C(128, 64, con)
+disp.text('Hello!', 0, 0, 1)
+disp.show()
    
 mak=makro()  
 mak.makread() 
@@ -66,15 +33,11 @@ def nullpos():
         st.sollpos[i] = anf[i]
         
 def info(a):
-    gc.collect()
     if st.verbo:
-        pcf=st.devpcf[a]
-        print("\bA",a,"Dev",st.pcfadr[pcf],"Out",st.out[pcf],"Soll",st.sollpos[a],"Ist",st.istpos[a],"Ri",st.richt[a],f"Tick {st.ticktime}")
-    else:
-        print(f"{a}A,",end='   ')
-        for s in st.sollpos:
-            print (f"{s:>4}",end=' ')
-        print()
+        print(f": {a}A,",end='   ')
+        for i in range(2):
+            print (f"{st.sollpos[i]:>4}",end=' ')
+        print(f" Ti {st.ticktime}")
 
 def hilf():
     print("""
@@ -82,15 +45,18 @@ def hilf():
     ..a   select A49 (0 to 3) 
     b     I2C Scan
     ..g   goto waypoint
-    ..D   set device addr ..
+    d     disable all
     e     enable 
     <spc> disable
     s     stop (soll=ist)
     ..t   ticktime in us, 0=noticks
     ..f   set I2C Frequency
     ..i   set postion ist und soll
-    ..k   set ppcm/10
+    l     loop this makro
     ..m   aktivate makro ..
+    M     read makros
+    !     wait exec
+    #     stop all makros
     ..p   set position soll
     v     toggle verbose
     j     toggle irre
@@ -104,25 +70,14 @@ def hilf():
     """)
 
 def tasti(b):
-    d=10
-    if   b== 3:  st.setpos(0,st.istpos[0]-d)
-    elif b== 4:  st.setpos(0,st.istpos[0]+d)
-    elif b== 7:  st.setpos(1,st.istpos[1]-d)
-    elif b== 8:  st.setpos(1,st.istpos[1]+d)
-    elif b==11:  st.setpos(2,st.istpos[2]-d)
-    elif b==12:  st.setpos(2,st.istpos[2]+d)
-    elif b==15:  st.setpos(3,st.istpos[3]-d)
-    elif b==16:  st.setpos(3,st.istpos[3]+d)
-    else:
-        print("tasti",b)
-
+   mak.maksel(b)
 
 def menu(ch,inmak):   
     global a        
     global inpAkt
     global inp
     global stack
-    global dd
+    
     try:
         pcf=st.devpcf[a]
         if ord(ch)>128:
@@ -137,7 +92,7 @@ def menu(ch,inmak):
                 inp = ord(ch) - 48;
             return
         else:
-            print(ch,end='\b\b\b\b\b')
+            print(ch,end='')
             inpAkt=False
             if ch=="b":         #scan (only from 0x08 to 0x77)
                 print("Scanning...",end=' ')
@@ -145,8 +100,8 @@ def menu(ch,inmak):
                 print(sc)
             elif ch=="a":       # accel read
                 a=inp
-            elif ch=="c":      
-                pass
+            elif ch=="d":      
+                st.disableall()
             elif ch=="e":
                 st.enable(a)                  
             elif ch=="f":
@@ -160,14 +115,14 @@ def menu(ch,inmak):
             elif ch=="j":
                 st.irre = not st.irre
                 print("irre",st.irre)
-            elif ch=="k":      
-                st.ppcm=float(inp)/10
+            elif ch=="l":      
+                mak.makloop()
             elif ch=="m":
                 mak.maksel(inp)  
             elif ch=="M":
                 mak.makread()  
             elif ch == "n":
-                nullpos()            
+                mak.makinfo()            
             elif ch == "O":
                 dd=inp
                 print('O',dd)                
@@ -189,7 +144,7 @@ def menu(ch,inmak):
                 st.verbo = not st.verbo
                 print("verbo",st.verbo)
             elif ch=="w":
-                time.sleep(inp)
+                st.pause(inp)
             elif ch=="x" or ch=="X":
                 calc.x=inp
                 p0,p1=calc.docalc()
@@ -203,9 +158,14 @@ def menu(ch,inmak):
                     st.setpos(0,p0)
                     st.setpos(1,p1)
             elif ch==" ":
-                if not inmak: st.disableall()  #space in Makro
+                if not inmak: 
+                    st.disableall()  #space in Makro
+                    mak.makstop()
             elif ch=="!":
-                print("!")
+                print("!")  # completed
+            elif ch=="#":                
+                st.disableall() 
+                mak.makstop()
             elif ch==",":
                 stack.append(inp)
                 return
@@ -239,8 +199,7 @@ def loop():
             if st.polle() is not None:
                 print("Key during Makro")
                 mak.makstop()
-            if ch != '!': continue
-            print("Makpaus")
+            if ch != '!': continue  # ! in makro: action
         ch=st.action()
         if menu(ch,False): break
     print ("Ende")

@@ -34,7 +34,7 @@ class stepper():
 
         self.lasttick = time.ticks_us()
         self.ticktime = 5000  # in us, 0 disabled
-        self.acttime = 0  # in ms, diabel all after last move
+        self.acttime = 0  # in ms, disable all after last move
 
         self.out = [255, 255]  # each PCF after start
         self.dirty = [True, True]
@@ -152,10 +152,23 @@ class stepper():
                 return "?"  # unicode error
         else:
             return None
+            
+    def pause(self,n):
+        anz=n*10   # 100ms
+        for i in range(anz):
+            if self.taston:
+                t = self.tast.taste()
+                if t != 0:
+                   return chr(t + 128)
+            c = self.polle()
+            if c is not None:
+                return c
+            time.sleep(0.1)
+            
 
     def action(self):
-        # loops until key pressed or taste (+128) or eomove (
-        if self.verbo: print("Act")
+        # loops until key pressed or taste (+128) or eomove (!)
+        #if self.verbo: print("Act",end='')
         while True:
             if self.poller.poll(0):
                 try:
