@@ -78,6 +78,7 @@ def hilfe():
     ..d   set device ..
     ..f   set I2C Frequency
     ..h ..l ..i  .. High/Low/Input
+    ..j   pin value
     n     toggle network active
     o     os info
     r     read device
@@ -135,6 +136,9 @@ def menu():
                     p2.on()    
                 elif ch=="i":       # pin inp
                     p2 = Pin(inp, Pin.IN)
+                elif ch=="j":       # pin inp
+                    p2 = Pin(inp, Pin.IN)
+                    print("Pin",p2,"is",p2.value())                    
                 elif ch=="l":       # pin low
                     p2 = Pin(inp, Pin.OUT)   
                     p2.off() 

@@ -162,7 +162,7 @@ def menu(ch,inmak):
                     st.disableall()  #space in Makro
                     mak.makstop()
             elif ch=="!":
-                print("!")  # completed
+                return  # completed
             elif ch=="#":                
                 st.disableall() 
                 mak.makstop()

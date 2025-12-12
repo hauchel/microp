@@ -112,10 +112,12 @@ IO12			IO16
 IO13
 VCC
 
-#setup go to pogramming Mode hold grey, press pink, release pink, release grey
+#setup go to pogramming Mode hold grey, press pink, release pink, release grey, nicht erforderlich bei d1
+d:\esp
 python -m esptool --port com3 erase_flash
 python -m esptool --port com3 --baud 460800 write_flash --flash_size=detect 0 ESP8266_GENERIC-20241129-v1.24.1.bin
 after Reset:
+cd microp
 ampy --port COM3 put boot.py boot.py
 ampy --port COM3 put webrepl_cfg.py webrepl_cfg.py
 Reset
@@ -169,14 +171,14 @@ beautify
 flake8
 black
 
-#Notepad++ save,compile transfer 
+#Notepad++ 
 Plugins → NppExec → Execute…
 NPP_SAVE
-cmd /c "C:\scripts\a.cmd"
-set local RC = $(SYS.EXITCODE)
-echo Return code = $(RC)
-if $(RC) == 0
-    echo ✅ Success!
-else
-    echo ❌ Failed with code $(RC)
-endif
+cmd /c  "d:\esp\microp\putf "  $(FILE_NAME)  47
+
+Plugins → NppExec → Advanced Options…
+Associated Script
+put..  restart B
+
+Zuordnen zu F1,F2
+Settings → Shortcut Mapper → Plugin Commands
