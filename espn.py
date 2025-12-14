@@ -2,25 +2,14 @@ import sys
 import time
 import network
 import espnow
-import uselect
 import ubinascii
-import machine
-
-poller = uselect.poll()
-poller.register(sys.stdin, uselect.POLLIN)
-
-
-inpAkt=False
-inp=0
-stack=[]
-cmd=''
-nachricht='m'
 
 class espn():
     # Mnn, Ann
     # broadcasts esp8266
     #   send: don't add to peer
     #   receive: von 32: geht nicht 
+    #   
     def __init__(self):
         print("Howdy espn from", __name__)
         self.is32 = (sys.platform == 'esp32')
@@ -52,6 +41,8 @@ class espn():
         self.ack=True
         self.verbo=True #False
         self.mnum=1
+        self.lastipn=0 #
+        self.lasttxt=''
         
     
     def macz(self,mac):
@@ -76,13 +67,15 @@ class espn():
             if self.wlan.isconnected():
                 break
             time.sleep(1)
-        print("connect is ",myn.wlan.isconnected())
+        print("connect is ",self.wlan.isconnected())
         
     def showmacs(self):
         for m in sorted(self.macs.items()):
             print(f"{m[0]:>3}",self.macz(m[1]))
             
     def sende(self,ipn,txt):
+        self.lastipn=ipn
+        self.lasttxt=txt
         self.mnum+=1
         if self.mnum > 99:
             self.mnum=1
@@ -92,10 +85,13 @@ class espn():
         else:
             peer=self.macs[ipn]
         res=self.e.send(peer, ms+txt)
-        print("Send",ipn,ms,res)
+        print("Snd",ipn,ms+txt,res)
     
+    def again(self):
+        self.sende(self.lastipn,self.lasttxt)
+        
     def recv(self):
-        print("Recv",end=" ")
+        print("Rcv",end=" ")
         host, msg = self.e.recv(1000)
         if msg:             # msg == None if timeout in recv()
             msgt=msg.decode()
@@ -122,150 +118,3 @@ class espn():
         except:
             print("8266!")
 
-
-myn=espn()
-   
-   
-def deepsl(ms):
-    print("Deepsl",ms)
-    if myn.is32:
-        from machine import deepsleep
-        deepsleep(ms)
-
-    # 8266, connect GPIO16 to the reset pin
-    # configure RTC.ALARM0 to be able to wake the device
-    rtc = machine.RTC()
-    rtc.irq(trigger=rtc.ALARM0, wake=machine.DEEPSLEEP)
-    # set RTC.ALARM0 to fire after 10 seconds (waking the device)
-    rtc.alarm(rtc.ALARM0, ms)
-    # put the device to sleep
-    machine.deepsleep()    
-    print("Hä?")
- 
-def lightsl(ms):
-    #8266: 0 NONE, 1 LIGHT 2 MODEM
-    pass
-    
-def hilf():
-    print("""
-    ..a   ack 0/1
-    c     connect
-    d     disconn
-    ..e   enow.active 0/1
-    ..w   wlan.active 0/1
-    i     Info  
-    j     Info (esp32 only)
-    l     Lightsleep
-    m     Macs
-    ..n   deepsl
-    r     Recv
-    ..s   Send to ..
-    '     Nachricht
-    
-    """)
-
-def prompt():
-    print (myn.myip,end=">")
-    
-def cmdin():
-    global cmd
-    txt=input('cmd: ')
-    cmd+=txt
-    print(cmd)
-    
-def menu(ch):   
-    global a        
-    global inpAkt
-    global inp
-    global stack
-    global nachricht
-    try:
-        if ((ch >= '0') and (ch <= '9')):
-            print(ch,end='')
-            if (inpAkt) :
-                inp = inp * 10 + (ord(ch) - 48);
-            else:
-                inpAkt = True;
-                inp = ord(ch) - 48;
-            return
-        else:
-            print(ch,end='\b')
-            inpAkt=False
-            if ch=="a":         #
-                myn.ack = (inp!=0)
-                print("ack",myn.ack)
-            elif ch=="c":                                
-                myn.conn(True)
-            elif ch=="d":  
-                myn.wlan.disconnect()
-                print("connect is ",myn.wlan.isconnected())
-            elif ch=="e":
-                myn.e.active(inp!=0)
-                print("ective",myn.e.active()) 
-            elif ch=="w":
-                myn.wlan.active(inp!=0)
-                print("wlan",myn.wlan.active()) 
-            elif ch=="i":
-                myn.laninfo()             
-            elif ch=="j":
-                myn.info()                    
-            elif ch=="m":
-                print()
-                myn.showmacs() 
-            elif ch=="n":                
-                deepsl(inp)    
-            elif ch=="q" or ch == '\x04':       # quit
-                myn.conn(False)
-                print ("restart with ",__name__+".loop() ")
-                return True    
-            elif ch=="r":
-                myn.recv()    
-            elif ch=="s":
-                myn.sende(inp,nachricht)    
-            elif ch=="v":       
-                myn.verbo = not myn.verbo
-                print("verbo",myn.verbo)   
-            elif ch=="'":
-                nachricht=input('Nar: ')                
-            elif ch==",":
-                stack.append(inp)
-                return
-            elif ch=="+":
-                inp=inp+stack.pop()
-                print(inp)
-                return
-            elif ch=="-":
-                inp=stack.pop()-inp
-                print(inp)
-                return
-            elif ch==">":
-                st.setpos(a,st.sollpos[a]+inp)
-            elif ch=="<":
-                 st.setpos(a,st.sollpos[a]-inp)
-            else:
-                hilf()
-    except Exception as inst:
-        #print ("Menu",end=' ')        
-        sys.print_exception(inst) 
-    prompt()
-    return False
-
-def loop():
-    global cmd
-    while True:
-        try:
-            if len(cmd) !=0:
-                ch=cmd[0]
-                cmd=cmd[1:]
-                if menu(ch): break    
-            if myn.e.any():
-                cmd+=myn.recv()
-                if myn.verbo: print('>'+cmd+'<')
-            if poller.poll(0):
-                ch=sys.stdin.read(1)
-                if menu(ch): break
-        except Exception as inst:
-            #print ("Loop",end=' ')
-            sys.print_exception(inst)   
-prompt()                
-loop()

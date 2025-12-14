@@ -26,7 +26,7 @@ class displ():
         self.disp.text('disp!', 0, 0, 1)
         self.disp.show()
    
-   def smile(self,x,y):
+    def smile(self,x,y):
     # Load smiley face image and disp
     # The below bytearray is a buffer representation of a 32x32 smiley face image.
         smiley = bytearray(b'\x00?\xfc\x00\x00\xff\xff\x00\x03\xff\xff\xc0\x07\xe0\x07\xe0\x0f\x80\x01\xf0\x1f\x00\x00\xf8>\x00\x00|<\x00\x00<x\x00\x00\x1epx\x1e\x0e\xf0x\x1e\x0f\xe0x\x1e\x07\xe0x\x1e\x07\xe0\x00\x00\x07\xe0\x00\x00\x07\xe0\x00\x00\x07\xe1\xc0\x03\x87\xe1\xc0\x03\x87\xe1\xc0\x03\x87\xe1\xe0\x07\x87\xe0\xf0\x0f\x07\xf0\xf8\x1f\x0fp\x7f\xfe\x0ex?\xfc\x1e<\x0f\xf0<>\x00\x00|\x1f\x00\x00\xf8\x0f\x80\x01\xf0\x07\xe0\x07\xe0\x03\xff\xff\xc0\x00\xff\xff\x00\x00?\xfc\x00')
@@ -34,7 +34,7 @@ class displ():
         self.disp.blit(fb, x, y) #
         self.disp.show()   
         
-    def fill(self,col)
+    def fill(self,col):
         self.disp.fill(col)
         self.disp.show()
 
@@ -49,7 +49,7 @@ class displ():
         self.disp.text('Three!', 0, 50, 1)
         self.disp.show()
 
-disp=displ(con)
+md=displ(con)
 
 def info():
     gc.collect()
@@ -64,11 +64,11 @@ def hilfe():
     ..h ..l ..i  .. High/Low/Input
     n     toggle network active
     o     os info
-    r     read device
+    ..r   rotate 0/1
     ..w   write device 
     R     hard reset
     s     show
-    t     tasten auf 39
+    t     text at x,y
     q     quit
     ..x   
     ..y   
@@ -103,8 +103,8 @@ def menu():
                 elif ch=="a":       #
                     pass          
                 elif ch=="c":     
-                    disp.fill(inp)
-                    disp.show()
+                    md.disp.fill(inp)
+                    md.disp.show()
                 elif ch=="f":
                     print ("speed",inp)  
                     con.init(pinSCL,pinSDA,freq=inp*1000)
@@ -116,20 +116,18 @@ def menu():
                 elif ch=="i":
                     smile()
                 elif ch=="r":
-                    disp.disp.rotate(False)
-                elif ch=="R":
-                    disp.rotate(True)
+                    md.disp.rotate( inp!=0 )
                 elif ch=="s":
-                    disp.show()
+                    md.disp.show()
                 elif ch=="t":
-                    disp.text('Text',x,y)                    
-                    disp.show()
+                    md.disp.text('Text',x,y)                    
+                    md.disp.show()
                 elif ch=="x":       #text
                     x=inp
                 elif ch=="y":       #text
                     y=inp
                 elif ch=="z":       #text
-                    zeigs()                    
+                    md.disp.zeigs()                    
                 else:
                     hilfe()
             except Exception as inst:

@@ -84,10 +84,11 @@ def hilfe():
     r     read device
     ..w   write device 
     R     hard reset
-    s     soft reset
+    #s     soft reset
     t     tasten auf 39
     q     quit
     p     pyfiles
+    ..s   show
     ..x   execute py
     ..y   import py
     
@@ -138,7 +139,7 @@ def menu():
                     p2 = Pin(inp, Pin.IN)
                 elif ch=="j":       # pin inp
                     p2 = Pin(inp, Pin.IN)
-                    print("Pin",p2,"is",p2.value())                    
+                    print(p2,"is",p2.value())                    
                 elif ch=="l":       # pin low
                     p2 = Pin(inp, Pin.OUT)   
                     p2.off() 
@@ -164,8 +165,9 @@ def menu():
                     print ("Killing me ...")
                     machine.reset()
                 elif ch=="s":
-                    print ("Killing me softly ...")
-                    machine.soft_reset()
+                    file = open(py_files[inp], 'r')
+                    print(file.read())
+                    file.close()
                 elif ch=="t":       #taste
                     print(tast.taste())
                 elif ch=="u":
