@@ -32,7 +32,8 @@ import esp
 esp.flash_size()
 
 #Formatierung
-print(f"'{zahl:>5}'")  # rechtsbündig, Breite 5 
+print(f"{zahl:>5}")    # rechtsbündig, Breite 5 
+{:02d}				   # leading zeros
 print(f"{pi:8.2f}")    # '    3.14' (Breite 8, 2 Nachkommastellen)
 
 
@@ -112,21 +113,6 @@ IO12			IO16
 IO13
 VCC
 
-#setup go to pogramming Mode hold grey, press pink, release pink, release grey, nicht erforderlich bei d1
-d:\esp
-python -m esptool --port com3 erase_flash
-python -m esptool --port com3 --baud 460800 write_flash --flash_size=detect 0 ESP8266_GENERIC-20241129-v1.24.1.bin
-after Reset:
-cd microp
-ampy --port COM3 put boot.py boot.py
-ampy --port COM3 put webrepl_cfg.py webrepl_cfg.py
-Reset
-Find IP (43)
-putHelper.bat 43
-putbas.bat 43
-reset
-
-
 mpy-cross myscript.py
 
 #QMC5883
@@ -146,13 +132,26 @@ Soft Reset Example
  Write Register 0AH by 0x80
 			10    128 
 
-			
+Netzwerk 
+========
+30..34   esp32-xx
+35..39   32c3-xx
+40..49   espxx
+50..59   D1-xx
+		
+
+set P=COM6
+		
 ***ESP8266
 ========			
-python -m esptool --port com3 erase_flash
-python -m esptool --port com4 --baud 460800 write_flash --flash_size=detect 0 ESP8266_GENERIC-20241129-v1.24.1.bin
-ampy --port COM3 put boot.py boot.py
-ampy --port COM4 put webrepl_cfg.py webrepl_cfg.py
+#setup go to pogramming Mode hold GPIO00 (neben SDA), press pink, release pink, release grey, nicht erforderlich bei d1
+d:\esp
+python -m esptool --port %P% erase_flash
+python -m esptool --port %P% --baud 460800 write_flash --flash_size=detect 0 ESP8266_GENERIC-20241129-v1.24.1.bin
+cd microp
+ampy --port %P% put boot.py boot.py
+ampy --port %P% put webrepl_cfg.py webrepl_cfg.py
+
 
 			
 ***ESP32
@@ -161,17 +160,40 @@ Spannungsversorgung mindestens 500 mA!!!!, USB reicht oft nicht
 
 vor Aufruf GPIO00 auf Ground setzen und halten, da nachfolgend ein Reset (über USB) ausführt:
 python -m esptool --port com3 --chip esp32 erase_flash
-python -m esptool --chip esp32 --port com3 write_flash -z 0x1000 ESP32_GENERIC-20241129-v1.24.1.bin
+python -m esptool --chip esp32 --port com5 write_flash -z 0x1000 ESP32_GENERIC-20241129-v1.24.1.bin
 
 
 Reset ist EN,  dies wird aber über UART leichter gemacht, evtl mit Widerstand auf Ground ziehen
 
-beautify
+*** ESP32–C3 Super-Mini
+=======================
+Fabrikneue spinnen am COM. Anschliessen und Boot/Reset
+Boot ist 09
+LED  ist 08
+SDA  ist 08 (!)
+SCL  ist 09
+https://www.mikrocontroller.net/topic/560572
+set P=COM6
+esptool --port %P% erase_flash
+esptool --port %P% --baud 460800 write_flash 0 ESP32_GENERIC_C3-20251209-v1.27.0.bin
+Reset!
+ampy --port %P% put boot.py boot.py
+ampy --port %P% put webrepl_cfg.py webrepl_cfg.py
 
-flake8
-black
+Wifi Internal State Error: Softreset ändert nix, manchmal hilft hard Reset
+
+
+
+beautify
+========
+
+flake8 --ignore=E501,E701 verb.py 
+autopep8 -i --select=E211,E225,E226,E231,E262,E302,W293 verb.py
 
 #Notepad++ 
+==========
+Edit → EOL-Conversion  → Unix
+
 Plugins → NppExec → Execute…
 NPP_SAVE
 cmd /c  "d:\esp\microp\putf "  $(FILE_NAME)  47
@@ -182,3 +204,12 @@ put..  restart B
 
 Zuordnen zu F1,F2
 Settings → Shortcut Mapper → Plugin Commands
+
+I2C Crossbar  Top View
+                  ADS 1115      Display
+   Stecker
+  ---- VCC      .+....        ..+....
+  ---- Gnd      ..+...        .+.....
+  ---- SDA      ....+.        ....+.
+  ---- SCL      ...+..        ...+..
+  ---- NC       ......        ......

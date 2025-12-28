@@ -38,7 +38,6 @@ class displ():
         self.disp.fill(col)
         self.disp.show()
 
-    
     def zeigs(self):
         m=123
         self.disp.text(f'Eins!{m:>5}', 0, 0, 1)
@@ -60,7 +59,7 @@ def hilfe():
     a     
     b     I2C Scan
     ..c   clear screen 
-    ..f   set I2C Frequency
+    ..f   set I2C Frequency*1000, z.b. 400
     ..h ..l ..i  .. High/Low/Input
     n     toggle network active
     o     os info
@@ -114,7 +113,7 @@ def menu():
                     print ("\brestart with ",__name__+".menu() ")
                     return
                 elif ch=="i":
-                    smile()
+                    md.smile()
                 elif ch=="r":
                     md.disp.rotate( inp!=0 )
                 elif ch=="s":

@@ -1,17 +1,21 @@
-# This file is executed on every boot (including wake-boot from deepsleep)
-print(chr(27)+'c')
+# Network depending on GPIO14
+#
+import sys
+impl=sys.implementation[2].split()[-1]  #ESP32 
+print('Running on',impl)
+print("\x1b]2;"+impl+"\x07", end="") #Teraterm title change request
 import esp
-from machine import Pin
-import network
-import time
 esp.osdebug(None)
-# check 14 (next to wake)
+
+from machine import Pin
 p14 = Pin(14, Pin.IN, Pin.PULL_UP)
 print("\nGPIO 14 ",p14.value())
-wlan = network.WLAN(network.STA_IF)
-wlan.active(True)
-# 
-if p14.value()==1:   
+import network
+import time
+
+if p14.value()==0 :   
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
     wlan.connect('FRITZ!HH','47114711')
     #wlan.connect('NETGEAR','12345678')
     hots=network.WLAN(network.AP_IF)
@@ -24,12 +28,7 @@ if p14.value()==1:
     import webrepl
     webrepl.start()
 else:
-    wlan.disconnect()
     print("\nGPIO 14 ",p14.value(),'No Connect!')
-    time.sleep(2)
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(False)
 print("boot done")
-
-
-
-
-

@@ -25,8 +25,14 @@ class espn():
         self.wlan = network.WLAN(network.WLAN.IF_STA)  # Or network.WLAN.IF_AP
         self.wlan.active(True)
         self.mymac=self.wlan.config('mac')
-        self.myip=self.ips[self.mymac] # bei key error in macs aufnehmen
-        print("me",self.macz(self.mymac),self.myip)        
+     
+        try:
+            self.myip=self.ips[self.mymac] # bei key error in macs aufnehmen
+            print("me",self.macz(self.mymac),self.myip)  
+        except:
+            print (self.macz(self.mymac),'not in self.macs',end=': ')
+            self.macbin(self.mymac)
+            self.myip = 0
         self.wlan.disconnect()      # MUSS bei ESP8266?
         self.e = espnow.ESPNow()
         self.e.active(True)
@@ -47,6 +53,10 @@ class espn():
     
     def macz(self,mac):
         return ubinascii.hexlify(mac,':').decode()
+    
+    def macbin(self,mac):
+        hex_str = ''.join(f'\\x{b:02x}' for b in mac)     
+        print( f"b'{hex_str}'")
         
     def laninfo(self):
         print(f"{self.wlan.status()} ack {self.ack}, wlan {self.wlan.active()}, espn {self.e.active()}, conn {self.wlan.isconnected()} {self.wlan.ipconfig('addr4')[0]} ", self.macz(self.wlan.config('mac')))  

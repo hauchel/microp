@@ -92,7 +92,10 @@ def hilf():
 def prompt():
     global strmode
     strmode=False
-    print (myn.myip,end=">")
+    if myn.myip !=0:
+        print (myn.myip,end=">")
+    else:
+        print ('??',end=">")
     
 def cmdin():
     global cmd
