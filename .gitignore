@@ -5,6 +5,7 @@ web*
 __pycache__/
 *.py[codz]
 *$py.class
+*.mpy
 
 # C extensions
 *.so

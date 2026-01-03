@@ -10,20 +10,21 @@ class espn():
     #   send: don't add to peer
     #   receive: von 32: geht nicht 
     #   
-    def __init__(self):
+    def __init__(self,waktiv=True):
         print("Howdy espn from", __name__)
         self.is32 = (sys.platform == 'esp32')
         self.macs = { 29: b'\xE8\xDB\x84\xC5\x1E\x3D', 31: b'\xc8\xc9\xa3\xc5\xfe\xfc', 
                       41: b'\xE8\xDB\x84\xDF\x94\x78', 43: b'\xE8\xDB\x84\xC5\x3C\xA7', 45: b'\xe8\xdb\x84\xdf\x4d\x30',
-                      47: b'\x84\xF3\xEB\x0D\x71\x9E',
-                      53: b'\xd8\xbf\xc0\r\xea\x0c'}
+                      48: b'\xe8\xdb\x84\xc5\xeb\x88',
+                      53: b'\xd8\xbf\xc0\r\xea\x0c',   55: b'\x84\xF3\xEB\x0D\x71\x9E'}
+        self.servip=55
         if self.is32: self.macs[0]=b'\xFF\xFF\xFF\xFF\xFF\xFF' #broadcast
         self.ips={}
         for m in self.macs:
             self.ips[self.macs[m]]=m
         self.mychan=1
         self.wlan = network.WLAN(network.WLAN.IF_STA)  # Or network.WLAN.IF_AP
-        self.wlan.active(True)
+        self.wlan.active(waktiv)
         self.mymac=self.wlan.config('mac')
      
         try:
@@ -33,11 +34,11 @@ class espn():
             print (self.macz(self.mymac),'not in self.macs',end=': ')
             self.macbin(self.mymac)
             self.myip = 0
-        self.wlan.disconnect()      # MUSS bei ESP8266?
+        ###self.wlan.disconnect()      # ?? MUSS bei ESP8266?
         self.e = espnow.ESPNow()
-        self.e.active(True)
+        self.e.active(waktiv)
         for ip in self.macs:
-            print(ip,self.macz(self.macs[ip]))
+            #print(ip,self.macz(self.macs[ip]))
             if ip != self.myip:
                 self.e.add_peer(self.macs[ip])
 #            if self.is32:
@@ -94,8 +95,9 @@ class espn():
             peer=b'\xFF\xFF\xFF\xFF\xFF\xFF'
         else:
             peer=self.macs[ipn]
-        res=self.e.send(peer, ms+txt)
+        res=self.e.send(peer, ms+txt) #OSError 869 -> kein espnow active
         print("Snd",ipn,ms+txt,res)
+        return res
     
     def again(self):
         self.sende(self.lastipn,self.lasttxt)

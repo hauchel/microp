@@ -5,8 +5,7 @@ import time
 import network
 import machine 
 import os
-from machine import I2C
-from machine import Pin
+from machine import I2C,Pin
 
 impl=sys.implementation[2].split()[-1]  #ESP32 ESP32C3 ESP8266
 print('Howdy, Running on',impl)
@@ -22,7 +21,7 @@ else:
     pinSDA = machine.Pin(4)  # green
     pinSCL = machine.Pin(5)  # yell
     
-con = I2C(scl=pinSCL, sda=pinSDA)
+i2c = I2C(scl=pinSCL, sda=pinSDA)
 wlan = network.WLAN(network.STA_IF)
 py_files = []
 
@@ -34,12 +33,12 @@ def info():
 
 def readdev():
     # read one
-    erg = con.readfrom(devadr, 1)
+    erg = i2c.readfrom(devadr, 1)
     print("Read: ", erg)
 
 
 def writedev(data):
-    print('Acks:', con.writeto(devadr, data))
+    print('Acks:', i2c.writeto(devadr, data))
 
 
 def connect():
@@ -68,6 +67,30 @@ def listfiles():
         print(i, py_files[i])    
 
 
+def deepsl(ms):
+    print("Deepsl",impl,ms)
+    # 8266, connect GPIO16 to the reset pin
+    # configure RTC.ALARM0 to be able to wake the device
+    if impl=='ESP8266':
+        rtc = machine.RTC()
+        rtc.irq(trigger=rtc.ALARM0, wake=machine.DEEPSLEEP)
+        # set RTC.ALARM0 to fire 
+        rtc.alarm(rtc.ALARM0, ms)
+        # put the device to sleep
+        machine.deepsleep()    
+        print("Hä?")
+    else:
+        from machine import deepsleep
+        deepsleep(ms)
+ 
+def lightsl(ms):
+    # 8266: 0 NONE, 1 LIGHT 2 MODEM
+    wlan.active(False)
+    print("Light",myn.wlan.active()) 
+    machine.lightsleep(ms)
+    wlan.active(True)
+    
+
 def reset_info():
     r = machine.reset_cause()
     print("Cause", r, end=' ')
@@ -93,7 +116,9 @@ def hilfe():
     ..h ..l ..i  .. High/Low/Input
     ..j   pin value
     m     modules
-    n     toggle network active
+    e     toggle network active
+    ..n     lightsl ..ms
+    ..N     deepsl ..ms
     o     os info
     r     read device
     ..w   write device 
@@ -105,7 +130,7 @@ def hilfe():
     ..s   show
     ..x   execute py
     ..y   import py
-    
+    ..z   zap (remove) py
     
     """)
 
@@ -132,7 +157,7 @@ def menu():
             try:
                 if ch == "b":  # scan (only from 0x08 to 0x77)
                     print("\bScanning...", end=' ')
-                    print(con.scan())
+                    print(i2c.scan())
                 elif ch == "a":       #
                     reset_info()
                 elif ch == "c":  # set count
@@ -143,7 +168,7 @@ def menu():
                     info()
                 elif ch == "f":
                     print("speed", inp)  
-                    con.init(pinSCL, pinSDA, freq=inp * 1000)
+                    i2c.init(pinSCL, pinSDA, freq=inp * 1000)
                 elif ch == "g":       # gyro read
                     pass               
                 elif ch == "h":       # pin high
@@ -157,7 +182,11 @@ def menu():
                 elif ch == "l":       # pin low
                     p2 = Pin(inp, Pin.OUT)   
                     p2.off()    
-                elif ch == "n":       #
+                elif ch=="n":                
+                    lightsl(inp)    
+                elif ch=="N":                
+                    deepsl(inp)                         
+                elif ch == "e":       #
                     act = not wlan.active()
                     if act: connect()
                     else:
@@ -194,6 +223,12 @@ def menu():
                     print("Importing module:", module_name)
                     mod = __import__(module_name)
                     print("\n back in", __name__)
+                elif ch == "z":
+                    filnam=py_files[inp]
+                    print ("Zapping",filnam)
+                    os.remove(filnam)
+                    listfiles()
+                   
                 else:
                     info()
                     hilfe()

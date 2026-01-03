@@ -1,7 +1,7 @@
 # Network depending on GPIO14
 #
 import sys
-impl=sys.implementation[2].split()[-1]  #ESP32 
+impl=sys.implementation[2].split()[-1]  # ESP8266 ESP32 
 print('Running on',impl)
 print("\x1b]2;"+impl+"\x07", end="") #Teraterm title change request
 import esp
@@ -13,7 +13,7 @@ print("\nGPIO 14 ",p14.value())
 import network
 import time
 
-if p14.value()==0 :   
+if p14.value()==1 :   
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect('FRITZ!HH','47114711')
