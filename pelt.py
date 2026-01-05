@@ -51,15 +51,15 @@ ina=INA219(i2c)
 
 class KENNL:
     def __init__(self,dac):
-        self.klA=0     # Anfang
-        self.klD=20    # Delta
-        self.klE=0     # am Ende
-        self.klN=10    # Anzahl
-        self.klNum=0   # akt
-        self.klOut=0     # akt
-        self.klK=100   # Ticktime
-        self.klTick=0  # akt
-        self.klV=False
+        self.klA=1500     # out Anfang
+        self.klD=50    # Delta
+        self.klE=0     # out am Ende
+        self.klN=20    # Anzahl
+        self.klNum=0   # akt N
+        self.klOut=0   # akt O
+        self.klK=10    # Ticktime
+        self.tick=0    # akt
+        self.klV=0
         self.klData={}
         self.dac=dac
         self.parms()
@@ -68,7 +68,7 @@ class KENNL:
         self.klOut=self.klA
         self.klData={} 
         self.setz()
-        self.klTick=self.klK
+        self.tick=self.klK
         self.klNum=0
         self.parms()
         
@@ -80,6 +80,11 @@ class KENNL:
             return f"{val:>5}"
         elif isinstance(val, float):
             return f"{val:3.3f}"
+        elif isinstance(val, list):
+            tmp=""
+            for w in val:
+                tmp=tmp+self.schoen(w)+"  "
+            return tmp
         else:
             return str(val)
 
@@ -90,7 +95,7 @@ class KENNL:
         self.klNum+=1
         if self.klNum>self.klN:
             self.klOut=self.klE
-            self.klTick=0
+            self.tick=0
             self.zeig()
         else:
             self.klOut+=self.klD
@@ -100,37 +105,96 @@ class KENNL:
         print(f"A={self.klA} D={self.klD} E={self.klE} N={self.klN} K={self.klK} V={self.klV} out={self.klOut}")
         
     def zeig(self):
-        for key, val in self.klData.items():
-            print(f"{key:>5} {self.schoen(val)}")
+        for key in sorted(self.klData):
+            print(f"{key:>5} {self.schoen(self.klData[key])}")
         
-        
+       
 ken=KENNL(dac)       
+
+class REGL:
+    def __init__(self):
+        # Strom in A:
+        self.soll=0 
+        self.abwd=[-0.1, -0.05, +0.05, +0.1]
+        self.sted=[ -10  , -2  ,   0,   +2,   +10] # wenn < abwd dieses sted
+        self.stetop=len(self.sted)-1     # zeigt auf grösstes sted
+        # Stellwert 0 .. 4095
+        self.stell=0
+        self.stellMin=0
+        self.stellMax=4095
+        self.tiset=100    # Tick ms
+        self.tick=0       # akt
+        self.sayset=10    # nach n Ausgabe
+        self.say=0        # akt
+    
+    def start(self,soll): # in mA
+        self.soll=soll/1000.0
+        self.tick=self.tiset
+        self.say=1
+        print(f"Soll {self.soll:2.3f} tick {self.tick} say{self.sayset}")
+
+    def stop(self):
+        self.tick=0
+        print("stop")
+
+    def regel(self,ist):
+        self.abw=self.soll - ist
+        stedneu=self.sted[self.stetop]
+        for n in range(self.stetop):
+            if self.abw < self.abwd[n]: 
+                stedneu =self.sted[n]
+                break
+        self.stell+=stedneu
+        if self.stell < self.stellMin:
+            self.stell=self.stellMin
+        elif self.stell > self.stellMax:
+            self.stell=self.stellMax      
+        #print (self.say,time.ticks_ms())
+        if self.say >0:
+            if self.say == 1:
+                print(f"Ist {ist:2.3f}  Abw {self.abw:2.3f}  Delt {stedneu} ->Stell {self.stell}")
+                self.say=self.sayset
+            else:
+                self.say -=1
+        return self.stell
+
+    def info(self):
+        print("Soll",self.soll,"Soll",self.soll,"Tick ",self.tiset,"Akt",self.tick,"Say",self.sayset)
+        
+reg=REGL()
+
 
 def hilf():
     print("""
-    ..a     
-    ..e
-   
-    ..t     showtime
+    b       i2c scan
+    j       info   
+    ..t     showtime in ms
     ..T     1,2,4,8 zeigt chan 0 1 2 3
-  dac    
-    ..o     out dac 0..4095
-  ina
+ ina:
     i       Strom
     u       Spannung
-  adc
+ adc:
     ..c     Channel 0..3 4..7
     ..g     Gain 0=2/3*,1=1*,2=2*,3=4*,4=8*, 5=16*
-    ..r     Rate 0..7
+    ..x     Rate 0..7
     a       read
     d       read_rev (!)
     z       zeig
- ..k     Kennlinie fuer o
+ dac:    
+    ..o     out dac 0..4095    
+    ..k     Kennlinie fuer o
     ..A      Anfangswert
     ..D      Delta
     ..N      Anzahl
-    ..K      kltime in ms
-    
+    ..E      Endwert wenn ferdisch
+    ..K      ticktime in ms
+    ..V      verbose 0/1
+ reg:
+    ..r      regel auf soll ..
+    ..R      ticktime in ms
+    ..S      Ausgabe nach .. Regelungen
+    s        single step
+ 
     """)
 
 def prompt():
@@ -156,6 +220,10 @@ def show():
             print(f"{n}:{adc.read(rate=adcRate, channel1=n):>6}",end="  ")  
     print(f"U={ina.read_voltage():2.3f} I={ina.read_current():2.3f}")
 
+def info():
+    print(f"Alloc {gc.mem_alloc()}",end=" > ")
+    gc.collect()
+    print(f"Alloc {gc.mem_alloc()}  Free {gc.mem_free()}")
 
     
 def menu(ch):   
@@ -171,59 +239,72 @@ def menu(ch):
             else:
                 inpAkt = True
                 inp = ord(ch) - 48
-            return # kein prompt
+            return False# kein prompt
         else:
             print(ch,end=' ')            
             inpAkt=False
-            if ch == "b":  # scan (only from 0x08 to 0x77)
-                print("\bScanning...", end=' ')
+            if ch == "b": 
+                print("Scanning...", end=' ')
                 print(i2c.scan())
+            elif ch==" ":  #Nothalt
+                reg.stop()
+                dac.set_value(0)
+                ken.tick=0
+                showtime=0
             elif ch=="a":      
                 print(adc.read(rate=adcRate, channel1=adcChan))                
             elif ch=="A":      
                 ken.klA=inp
                 ken.parms()
-            elif ch=="D":      
-                ken.klD=inp
-                ken.parms()
-            elif ch=="E":      
-                ken.klE=inp
-                ken.parms()                
-            elif ch=="N":      
-                ken.klN=inp
-                ken.parms()
-            elif ch=="K":      
-                ken.klK=inp
-                ken.parms()
-            elif ch=="V":      
-                ken.klV=(inp != 0)
-                ken.parms()                
             elif ch=="c": 
                 adcChan=inp
                 adc.set_conv(rate=adcRate, channel1=adcChan)
                 adcInfo()
             elif ch=="d":      
                 print(adc.read_rev())
+            elif ch=="D":      
+                ken.klD=inp
+                ken.parms()
+            elif ch=="E":      
+                ken.klE=inp
+                ken.parms()                
             elif ch=="g": 
                 adcGain=inp
                 adc.gain=adcGain
                 adcInfo()   
             elif ch=="i": 
                 print(f"{ina.read_current():2.3f}")
+            elif ch=="j": 
+                info()
             elif ch=="k":
                 ken.anfang()
                 print("...")
                 return
-            elif ch=="r": 
-                adcRate=inp
-                adc.set_conv(rate=adcRate, channel1=adcChan)
-                adcInfo()                
+            elif ch=="K":      
+                ken.klK=inp
+                ken.parms()
+            elif ch=="N":      
+                ken.klN=inp
+                ken.parms()                            
             elif ch=="o":      
                 dac.set_value(inp)
                 print ("dac" ,inp)
             elif ch=="q" or ch == '\x04':       # quit
                 print ("restart with ",__name__+".loop() ")
                 return True
+            elif ch=="r":      
+                reg.start(inp)
+            elif ch=="R":      
+                reg.tiset=inp
+                reg.info()     
+            elif ch=="s":      
+                stell=reg.regel(ina.read_current())
+                print("Stell",stell)
+                dac.set_value(stell)                   
+            elif ch=="S":      
+                reg.sayset=inp
+                reg.say==inp
+                reg.info()     
             elif ch=="t":
                 showtime=inp
                 print("tick ms", showtime)   
@@ -232,11 +313,17 @@ def menu(ch):
                 print("show", showas,':') 
                 show()                   
             elif ch=="u": 
-                print(f"{ina.read_voltage():2.3f}")
-                
+                print(f"{ina.read_voltage():2.3f}")                
             elif ch=="v":       
                 verbo = not verbo
                 print("verbo", verbo)  
+            elif ch=="V":      
+                ken.klV=inp
+                ken.parms()      
+            elif ch=="x": 
+                adcRate=inp
+                adc.set_conv(rate=adcRate, channel1=adcChan)
+                adcInfo()                    
             elif ch=="z":
                 show()   
             elif ch==",":
@@ -249,38 +336,46 @@ def menu(ch):
             elif ch=="-":
                 inp=stack.pop()-inp
                 print('=',inp)
-                return
+                return False
             else:
                 print("ord=",ord(ch))
                 hilf()
     except Exception as inst:
-        # print ("Menu",end=' ')        
+        print ("Menu",end=' ')        
         sys.print_exception(inst) 
     prompt()
     return False
 
 def loop():
     global cmd
-    lastshow=time.ticks_ms()
-    lastkl=lastshow
+    tim=time.ticks_ms()
+    lastsho=tim
+    lastken=tim
+    lastreg=tim
+    
     while True:
         try:
             if poller.poll(0):
                 ch=sys.stdin.read(1)
                 if menu(ch): break
             tim=time.ticks_ms()
+            if reg.tick >0:  #Regler first
+                difftick = time.ticks_diff(tim, lastreg)
+                if difftick > reg.tick:
+                    lastreg = tim
+                    dac.set_value(reg.regel(ina.read_current()))              
             if showtime > 0:
-                difftick = time.ticks_diff(tim, lastshow)
+                difftick = time.ticks_diff(tim, lastsho)
                 if difftick > showtime:
-                    lastshow = tim
+                    lastsho = tim
                     show()
-            if ken.klTick >0:
-                difftick = time.ticks_diff(tim, lastkl)
-                if difftick > ken.klTick:
-                    lastkl = tim
-                    ken.store(ina.read_current())                
+            if ken.tick >0:
+                difftick = time.ticks_diff(tim, lastken)
+                if difftick > ken.tick:
+                    lastken = tim
+                    ken.store([ina.read_current(),ina.read_voltage()])                
         except Exception as inst:
-            #print ("Loop",end=' ')
+            print ("Loop",end=' ')
             sys.print_exception(inst)   
 prompt()                
 loop()

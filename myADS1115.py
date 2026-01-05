@@ -1,4 +1,13 @@
-# from https://github.com/robert-hh/ads1x15/blob/master/ads1x15.py
+#  https://github.com/robert-hh/ads1x15/blob/master/ads1x15.py  stark reduziert
+"""
+from myADS1115 import ADS1115
+from machine import I2C,Pin
+pinSDA = Pin(4)  # green
+pinSCL = Pin(5)  # yell   
+i2c = I2C(scl=pinSCL, sda=pinSDA)
+adc = ADS1115(i2c, address=72, gain=1)
+adc.read(rate=4, channel1=0)
+"""
 import utime as time
 
 _REGISTER_MASK = const(0x03)
@@ -64,12 +73,12 @@ _CQUE_4CONV = const(0x0002)  # Assert ALERT/RDY after four conversions
 _CQUE_NONE = const(0x0003)
 
 _GAINS = (
-    _PGA_6_144V,  # 2/3x
-    _PGA_4_096V,  # 1x
-    _PGA_2_048V,  # 2x
-    _PGA_1_024V,  # 4x
-    _PGA_0_512V,  # 8x
-    _PGA_0_256V   # 16x
+    _PGA_6_144V,  # 2/3x  0
+    _PGA_4_096V,  # 1x    1
+    _PGA_2_048V,  # 2x    2
+    _PGA_1_024V,  # 4x    3
+    _PGA_0_512V,  # 8x    4
+    _PGA_0_256V   # 16x   5
 )
 
 _GAINS_V = (
@@ -78,19 +87,22 @@ _GAINS_V = (
     2.048,  # 2x
     1.024,  # 4x
     0.512,  # 8x
-    0.256  # 16x
+    0.256   # 16x
 )
-
+"""
 _CHANNELS = {
     (0, None): _MUX_SINGLE_0,
     (1, None): _MUX_SINGLE_1,
     (2, None): _MUX_SINGLE_2,
     (3, None): _MUX_SINGLE_3,
-    (0, 1): _MUX_DIFF_0_1,
-    (0, 3): _MUX_DIFF_0_3,
-    (1, 3): _MUX_DIFF_1_3,
-    (2, 3): _MUX_DIFF_2_3,
+    (0, 1): _MUX_DIFF_0_1,        #4
+    (0, 3): _MUX_DIFF_0_3,        #5 
+    (1, 3): _MUX_DIFF_1_3,        #6 
+    (2, 3): _MUX_DIFF_2_3,        #7
 }
+"""
+_CHANNELS = ( _MUX_SINGLE_0, _MUX_SINGLE_1, _MUX_SINGLE_2, _MUX_SINGLE_3,
+              _MUX_DIFF_0_1, _MUX_DIFF_0_3, _MUX_DIFF_1_3, _MUX_DIFF_2_3 )
 
 _RATES = (
     _DR_128SPS,   # 128/8 samples per second
@@ -124,20 +136,20 @@ class ADS1115:
         v_p_b = _GAINS_V[self.gain] / 32768
         return raw * v_p_b
 
-    def set_conv(self, rate=4, channel1=0, channel2=None):
+    def set_conv(self, rate=4, channel1=0):
         """Set mode for read_rev"""
         self.mode = (_CQUE_NONE | _CLAT_NONLAT |
                      _CPOL_ACTVLOW | _CMODE_TRAD | _RATES[rate] |
                      _MODE_SINGLE | _OS_SINGLE | _GAINS[self.gain] |
-                     _CHANNELS[(channel1, channel2)])
+                     _CHANNELS[channel1])
 
-    def read(self, rate=4, channel1=0, channel2=None):
+    def read(self, rate=4, channel1=0):
         """Read voltage between a channel and GND.
            Time depends on conversion rate."""
         self._write_register(_REGISTER_CONFIG, (_CQUE_NONE | _CLAT_NONLAT |
                              _CPOL_ACTVLOW | _CMODE_TRAD | _RATES[rate] |
                              _MODE_SINGLE | _OS_SINGLE | _GAINS[self.gain] |
-                             _CHANNELS[(channel1, channel2)]))
+                             _CHANNELS[channel1]))
         while not self._read_register(_REGISTER_CONFIG) & _OS_NOTBUSY:
             time.sleep_ms(1)
         res = self._read_register(_REGISTER_CONVERT)
@@ -150,7 +162,7 @@ class ADS1115:
         self._write_register(_REGISTER_CONFIG, self.mode)
         return res if res < 32768 else res - 65536
 
-    def alert_start(self, rate=4, channel1=0, channel2=None,
+    def alert_start(self, rate=4, channel1=0, 
                     threshold_high=0x4000, threshold_low=0, latched=False) :
         """Start continuous measurement, set ALERT pin on threshold."""
         self._write_register(_REGISTER_LOWTHRESH, threshold_low)
@@ -159,16 +171,16 @@ class ADS1115:
                              _CLAT_LATCH if latched else _CLAT_NONLAT |
                              _CPOL_ACTVLOW | _CMODE_TRAD | _RATES[rate] |
                              _MODE_CONTIN | _GAINS[self.gain] |
-                             _CHANNELS[(channel1, channel2)])
+                             _CHANNELS[channel1])
 
-    def conversion_start(self, rate=4, channel1=0, channel2=None):
+    def conversion_start(self, rate=4, channel1=0):
         """Start continuous measurement, trigger on ALERT/RDY pin."""
         self._write_register(_REGISTER_LOWTHRESH, 0)
         self._write_register(_REGISTER_HITHRESH, 0x8000)
         self._write_register(_REGISTER_CONFIG, _CQUE_1CONV | _CLAT_NONLAT |
                              _CPOL_ACTVLOW | _CMODE_TRAD | _RATES[rate] |
                              _MODE_CONTIN | _GAINS[self.gain] |
-                             _CHANNELS[(channel1, channel2)])
+                             _CHANNELS[channel1])
 
     def alert_read(self):
         """Get the last reading from the continuous measurement."""
