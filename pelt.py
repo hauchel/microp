@@ -4,11 +4,12 @@
 # 4 (SDA)
 # 72 adc  ADS1115
 # 96 dac  MCP4725
-#         INA219
+# 64      INA219
 import sys
 import uselect
 import time
 import gc
+from math import log
 from machine import I2C,Pin
 
 impl=sys.implementation[2].split()[-1]  #ESP32 ESP32C3 ESP8266
@@ -32,8 +33,13 @@ inpAkt=False
 inpStr=''
 inp=0
 stack=[]
-showtime=0     #
-showas=0
+shotime=1000  # jede sekunde, set by Z
+shotick=0     # akt
+showas=15     # 1/0 überhaupt, wenn nix anderes Spannung
+shoraw=0      # 1 raw 
+shotmp=0      # 1 Temp
+showid=0      # 1 Widerst
+
 verbo=False
 
 from myMCP4725 import MCP4725
@@ -46,189 +52,115 @@ adcChan=0
 adc=ADS1115(i2c, address=72, gain=adcGain)
 adc.set_conv(rate=adcRate, channel1=adcChan)
 
+BETA=3950.0
+betar=1/BETA
+
 from myINA219 import INA219
 ina=INA219(i2c)
 
-class KENNL:
-    def __init__(self,dac):
-        self.klA=1500     # out Anfang
-        self.klD=50    # Delta
-        self.klE=0     # out am Ende
-        self.klN=20    # Anzahl
-        self.klNum=0   # akt N
-        self.klOut=0   # akt O
-        self.klK=10    # Ticktime
-        self.tick=0    # akt
-        self.klV=0
-        self.klData={}
-        self.dac=dac
-        self.parms()
-    
-    def anfang(self):
-        self.klOut=self.klA
-        self.klData={} 
-        self.setz()
-        self.tick=self.klK
-        self.klNum=0
-        self.parms()
-        
-    def setz(self):
-        self.dac.set_value(self.klOut)
-        
-    def schoen(self,val):
-        if isinstance(val, int):
-            return f"{val:>5}"
-        elif isinstance(val, float):
-            return f"{val:3.3f}"
-        elif isinstance(val, list):
-            tmp=""
-            for w in val:
-                tmp=tmp+self.schoen(w)+"  "
-            return tmp
-        else:
-            return str(val)
-
-    def store(self,val):
-        if self.klV:
-            print(f"{self.klNum:>3} {self.klOut:>5} with {self.schoen(val)}")
-        self.klData[self.klOut]=val
-        self.klNum+=1
-        if self.klNum>self.klN:
-            self.klOut=self.klE
-            self.tick=0
-            self.zeig()
-        else:
-            self.klOut+=self.klD
-        self.setz()
-        
-    def parms(self):
-        print(f"A={self.klA} D={self.klD} E={self.klE} N={self.klN} K={self.klK} V={self.klV} out={self.klOut}")
-        
-    def zeig(self):
-        for key in sorted(self.klData):
-            print(f"{key:>5} {self.schoen(self.klData[key])}")
-        
-       
-ken=KENNL(dac)       
-
-class REGL:
-    def __init__(self):
-        # Strom in A:
-        self.soll=0 
-        self.abwd=[-0.1, -0.05, +0.05, +0.1]
-        self.sted=[ -10  , -2  ,   0,   +2,   +10] # wenn < abwd dieses sted
-        self.stetop=len(self.sted)-1     # zeigt auf grösstes sted
-        # Stellwert 0 .. 4095
-        self.stell=0
-        self.stellMin=0
-        self.stellMax=4095
-        self.tiset=100    # Tick ms
-        self.tick=0       # akt
-        self.sayset=10    # nach n Ausgabe
-        self.say=0        # akt
-    
-    def start(self,soll): # in mA
-        self.soll=soll/1000.0
-        self.tick=self.tiset
-        self.say=1
-        print(f"Soll {self.soll:2.3f} tick {self.tick} say{self.sayset}")
-
-    def stop(self):
-        self.tick=0
-        print("stop")
-
-    def regel(self,ist):
-        self.abw=self.soll - ist
-        stedneu=self.sted[self.stetop]
-        for n in range(self.stetop):
-            if self.abw < self.abwd[n]: 
-                stedneu =self.sted[n]
-                break
-        self.stell+=stedneu
-        if self.stell < self.stellMin:
-            self.stell=self.stellMin
-        elif self.stell > self.stellMax:
-            self.stell=self.stellMax      
-        #print (self.say,time.ticks_ms())
-        if self.say >0:
-            if self.say == 1:
-                print(f"Ist {ist:2.3f}  Abw {self.abw:2.3f}  Delt {stedneu} ->Stell {self.stell}")
-                self.say=self.sayset
-            else:
-                self.say -=1
-        return self.stell
-
-    def info(self):
-        print("Soll",self.soll,"Soll",self.soll,"Tick ",self.tiset,"Akt",self.tick,"Say",self.sayset)
-        
+from myKR import KENNL,REGL      
+ken=KENNL(dac)               
 reg=REGL()
 
+class CONF:
+     def __init__(self):
+         self.vcc = 3.309                    # Spannung des Teilers
+         self.rtop=(9830, 9830, 9830, 9830)  # Widerstand gegen vcc
+         self.rntc0=(7500, 7500, 7500, 7500)  # NTC bei 25 C
+         self.betar=(1.0/3850.0, 1.0/3850.0, 1.0/3850.0, 1.0/3850.0)  # 1/Beta
+
+
+cfg=CONF()         
 
 def hilf():
     print("""
-    b       i2c scan
-    j       info   
-    ..t     showtime in ms
-    ..T     1,2,4,8 zeigt chan 0 1 2 3
- ina:
+ Show:
+    ..a     
+    z       zeig
+    t       dauer mit 
+    ..T     tick fuer show
+    ..Z     1,2,4,8 zeigt chan 0 1 2 3, 16 ina
+    ..Y             raw
+    ..W             Widerstand 
+    ..X             Temp
+dac:    
+    ..o     out dac 0..4095
+ina:
     i       Strom
     u       Spannung
- adc:
+adc:
     ..c     Channel 0..3 4..7
     ..g     Gain 0=2/3*,1=1*,2=2*,3=4*,4=8*, 5=16*
     ..x     Rate 0..7
     a       read
     d       read_rev (!)
     z       zeig
- dac:    
-    ..o     out dac 0..4095    
-    ..k     Kennlinie fuer o
+ ..k     Kennlinie fuer o
     ..A      Anfangswert
     ..D      Delta
     ..N      Anzahl
-    ..E      Endwert wenn ferdisch
-    ..K      ticktime in ms
-    ..V      verbose 0/1
- reg:
-    ..r      regel auf soll ..
-    ..R      ticktime in ms
-    ..S      Ausgabe nach .. Regelungen
-    s        single step
- 
+    ..K      kltime in ms
+Regler:
+    ..r      auf Soll ..
+    ..R      tick
+    s        single 
+    ..S      zeig 0: nix, >0: zeig alle ..,  <0: nur wenn diff >=
+    .. 
+ Sonst:   
     """)
+
 
 def prompt():
     print ('>',end="")
     
 def adcInfo():
     print("Gain",adcGain,"Rate", adcRate,"Chan",adcChan)
-    
-def adcZeig():
-    voltage0 = adc.read(rate=adcRate, channel1=0)
-    voltage1 = adc.read(rate=adcRate, channel1=1)
-    voltage2 = adc.read(rate=adcRate, channel1=2)
-    voltage3 = adc.read(rate=adcRate, channel1=3)
-    print("0: {:<8} 1: {:<8} 2: {:<8} 3: {:<8}".format(voltage0, voltage1, voltage2, voltage3))
 
 def inaZeig():
     print(f"U={ina.read_voltage():2.3f} I={ina.read_current():2.3f}")
-    
-    
+
+def raw_to_r(raw, chan):    
+    uin=adc.raw_to_v(raw)
+    return int(cfg.rtop[chan]*uin/(cfg.vcc-uin))
+        
+def raw_to_t(raw,chan):
+    T0=298.15
+    rntc=raw_to_r(raw,chan)
+    tempk = 1 / ((1/T0) + cfg.betar[chan] * log(rntc / cfg.rntc0[chan]))
+    return tempk - 273.15
+
 def show():
+    tx="\b\b\b"
     for n in range(4):
         if showas & (1 << n):
-            print(f"{n}:{adc.read(rate=adcRate, channel1=n):>6}",end="  ")  
-    print(f"U={ina.read_voltage():2.3f} I={ina.read_current():2.3f}")
+            raw=adc.read(rate=adcRate, channel1=n)   
+            druv=True       #voltage nur wenn nix anderes
+            if shoraw  & (1 << n):
+                tx+=f"{n}D: {raw:5}  "
+                druv=False
+            if showid  & (1 << n):
+                tx+=f"{n}R: {raw_to_r(raw,n):5}  " 
+                druv=False
+            if shotmp  & (1 << n):
+                tx+=f"{n}T: {raw_to_t(raw,n):4.2f}  "
+                druv=False                
+            if druv:
+                tx+=f"{n}V: {adc.raw_to_v(raw):3.3f}  "
+    print(tx,end=' ')
+    if showas & (1 << 4):
+        print(f"U={ina.read_voltage():2.3f} I={ina.read_current():2.3f}")
+    else:
+        print()
 
 def info():
     print(f"Alloc {gc.mem_alloc()}",end=" > ")
     gc.collect()
     print(f"Alloc {gc.mem_alloc()}  Free {gc.mem_free()}")
-
+    print("T",shotime," Z",showas," X",shotmp," Y",shoraw," W",showid)
     
 def menu(ch):   
     global inpStr,inpAkt,inp, stack
-    global showtime, showas
+    global shotime, showas, shotick, shoraw,showid,shotmp
     global verbo
     global adcGain, adcRate, adcChan
     try:         
@@ -250,12 +182,15 @@ def menu(ch):
                 reg.stop()
                 dac.set_value(0)
                 ken.tick=0
-                showtime=0
+                shotick=0
             elif ch=="a":      
                 print(adc.read(rate=adcRate, channel1=adcChan))                
             elif ch=="A":      
                 ken.klA=inp
                 ken.parms()
+            elif ch=="B":      
+                betar=1/inp
+                print("BETA",inp)
             elif ch=="c": 
                 adcChan=inp
                 adc.set_conv(rate=adcRate, channel1=adcChan)
@@ -306,12 +241,15 @@ def menu(ch):
                 reg.say==inp
                 reg.info()     
             elif ch=="t":
-                showtime=inp
-                print("tick ms", showtime)   
+                if shotick==0:
+                    shotick=shotime
+                    print()
+                    return False
+                else:
+                    shotick=0
             elif ch=="T":
-                showas=inp
-                print("show", showas,':') 
-                show()                   
+                shotime=inp    
+                print("Shotime",inp)                 
             elif ch=="u": 
                 print(f"{ina.read_voltage():2.3f}")                
             elif ch=="v":       
@@ -326,6 +264,22 @@ def menu(ch):
                 adcInfo()                    
             elif ch=="z":
                 show()   
+            elif ch=="W":
+                showid=inp
+                print("showid", showid,':') 
+                show()   
+            elif ch=="X":
+                shotmp=inp
+                print("shotmp", shotmp,':') 
+                show()                                 
+            elif ch=="Y":
+                shoraw=inp
+                print("shoraw", shoraw,':') 
+                show()                      
+            elif ch=="Z":
+                showas=inp
+                print("show", showas,':') 
+                show()                     
             elif ch==",":
                 stack.append(inp)
                 return
@@ -364,9 +318,9 @@ def loop():
                 if difftick > reg.tick:
                     lastreg = tim
                     dac.set_value(reg.regel(ina.read_current()))              
-            if showtime > 0:
+            if shotick > 0:
                 difftick = time.ticks_diff(tim, lastsho)
-                if difftick > showtime:
+                if difftick > shotick:
                     lastsho = tim
                     show()
             if ken.tick >0:

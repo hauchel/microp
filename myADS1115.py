@@ -89,18 +89,7 @@ _GAINS_V = (
     0.512,  # 8x
     0.256   # 16x
 )
-"""
-_CHANNELS = {
-    (0, None): _MUX_SINGLE_0,
-    (1, None): _MUX_SINGLE_1,
-    (2, None): _MUX_SINGLE_2,
-    (3, None): _MUX_SINGLE_3,
-    (0, 1): _MUX_DIFF_0_1,        #4
-    (0, 3): _MUX_DIFF_0_3,        #5 
-    (1, 3): _MUX_DIFF_1_3,        #6 
-    (2, 3): _MUX_DIFF_2_3,        #7
-}
-"""
+
 _CHANNELS = ( _MUX_SINGLE_0, _MUX_SINGLE_1, _MUX_SINGLE_2, _MUX_SINGLE_3,
               _MUX_DIFF_0_1, _MUX_DIFF_0_3, _MUX_DIFF_1_3, _MUX_DIFF_2_3 )
 
@@ -135,7 +124,7 @@ class ADS1115:
     def raw_to_v(self, raw):
         v_p_b = _GAINS_V[self.gain] / 32768
         return raw * v_p_b
-
+        
     def set_conv(self, rate=4, channel1=0):
         """Set mode for read_rev"""
         self.mode = (_CQUE_NONE | _CLAT_NONLAT |
@@ -160,29 +149,4 @@ class ADS1115:
            the next conversion."""
         res = self._read_register(_REGISTER_CONVERT)
         self._write_register(_REGISTER_CONFIG, self.mode)
-        return res if res < 32768 else res - 65536
-
-    def alert_start(self, rate=4, channel1=0, 
-                    threshold_high=0x4000, threshold_low=0, latched=False) :
-        """Start continuous measurement, set ALERT pin on threshold."""
-        self._write_register(_REGISTER_LOWTHRESH, threshold_low)
-        self._write_register(_REGISTER_HITHRESH, threshold_high)
-        self._write_register(_REGISTER_CONFIG, _CQUE_1CONV |
-                             _CLAT_LATCH if latched else _CLAT_NONLAT |
-                             _CPOL_ACTVLOW | _CMODE_TRAD | _RATES[rate] |
-                             _MODE_CONTIN | _GAINS[self.gain] |
-                             _CHANNELS[channel1])
-
-    def conversion_start(self, rate=4, channel1=0):
-        """Start continuous measurement, trigger on ALERT/RDY pin."""
-        self._write_register(_REGISTER_LOWTHRESH, 0)
-        self._write_register(_REGISTER_HITHRESH, 0x8000)
-        self._write_register(_REGISTER_CONFIG, _CQUE_1CONV | _CLAT_NONLAT |
-                             _CPOL_ACTVLOW | _CMODE_TRAD | _RATES[rate] |
-                             _MODE_CONTIN | _GAINS[self.gain] |
-                             _CHANNELS[channel1])
-
-    def alert_read(self):
-        """Get the last reading from the continuous measurement."""
-        res = self._read_register(_REGISTER_CONVERT)
         return res if res < 32768 else res - 65536
