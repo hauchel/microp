@@ -52,9 +52,6 @@ adcChan=0
 adc=ADS1115(i2c, address=72, gain=adcGain)
 adc.set_conv(rate=adcRate, channel1=adcChan)
 
-BETA=3950.0
-betar=1/BETA
-
 from myINA219 import INA219
 ina=INA219(i2c)
 
@@ -62,53 +59,8 @@ from myKR import KENNL,REGL
 ken=KENNL(dac)               
 reg=REGL()
 
-class CONF:
-     def __init__(self):
-         self.vcc = 3.309                    # Spannung des Teilers
-         self.rtop=(9830, 9830, 9830, 9830)  # Widerstand gegen vcc
-         self.rntc0=(7500, 7500, 7500, 7500)  # NTC bei 25 C
-         self.betar=(1.0/3850.0, 1.0/3850.0, 1.0/3850.0, 1.0/3850.0)  # 1/Beta
-
-
+from myCONF import CONF
 cfg=CONF()         
-
-def hilf():
-    print("""
- Show:
-    ..a     
-    z       zeig
-    t       dauer mit 
-    ..T     tick fuer show
-    ..Z     1,2,4,8 zeigt chan 0 1 2 3, 16 ina
-    ..Y             raw
-    ..W             Widerstand 
-    ..X             Temp
-dac:    
-    ..o     out dac 0..4095
-ina:
-    i       Strom
-    u       Spannung
-adc:
-    ..c     Channel 0..3 4..7
-    ..g     Gain 0=2/3*,1=1*,2=2*,3=4*,4=8*, 5=16*
-    ..x     Rate 0..7
-    a       read
-    d       read_rev (!)
-    z       zeig
- ..k     Kennlinie fuer o
-    ..A      Anfangswert
-    ..D      Delta
-    ..N      Anzahl
-    ..K      kltime in ms
-Regler:
-    ..r      auf Soll ..
-    ..R      tick
-    s        single 
-    ..S      zeig 0: nix, >0: zeig alle ..,  <0: nur wenn diff >=
-    .. 
- Sonst:   
-    """)
-
 
 def prompt():
     print ('>',end="")
@@ -188,9 +140,11 @@ def menu(ch):
             elif ch=="A":      
                 ken.klA=inp
                 ken.parms()
-            elif ch=="B":      
-                betar=1/inp
-                print("BETA",inp)
+            elif ch=="B":   
+                tmp=stack.pop()
+                stack.append(tmp)
+                cfg.betar[inp]=1.0/tmp
+                cfg.show()                
             elif ch=="c": 
                 adcChan=inp
                 adc.set_conv(rate=adcRate, channel1=adcChan)
@@ -211,6 +165,7 @@ def menu(ch):
                 print(f"{ina.read_current():2.3f}")
             elif ch=="j": 
                 info()
+                cfg.show()
             elif ch=="k":
                 ken.anfang()
                 print("...")
@@ -220,7 +175,12 @@ def menu(ch):
                 ken.parms()
             elif ch=="N":      
                 ken.klN=inp
-                ken.parms()                            
+                ken.parms()   
+            elif ch=="M":      #w,n aber 
+                tmp=stack.pop()
+                stack.append(tmp)
+                cfg.rtop[inp]=tmp
+                cfg.show()
             elif ch=="o":      
                 dac.set_value(inp)
                 print ("dac" ,inp)
@@ -256,18 +216,16 @@ def menu(ch):
                 verbo = not verbo
                 print("verbo", verbo)  
             elif ch=="V":      
-                ken.klV=inp
-                ken.parms()      
-            elif ch=="x": 
-                adcRate=inp
-                adc.set_conv(rate=adcRate, channel1=adcChan)
-                adcInfo()                    
-            elif ch=="z":
-                show()   
+                cfg.vcc=inp
+                cfg.show()      
             elif ch=="W":
                 showid=inp
                 print("showid", showid,':') 
                 show()   
+            elif ch=="x": 
+                adcRate=inp
+                adc.set_conv(rate=adcRate, channel1=adcChan)
+                adcInfo()                    
             elif ch=="X":
                 shotmp=inp
                 print("shotmp", shotmp,':') 
@@ -276,6 +234,8 @@ def menu(ch):
                 shoraw=inp
                 print("shoraw", shoraw,':') 
                 show()                      
+            elif ch=="z":
+                show()                   
             elif ch=="Z":
                 showas=inp
                 print("show", showas,':') 
@@ -283,17 +243,27 @@ def menu(ch):
             elif ch==",":
                 stack.append(inp)
                 return
+            elif ch==".":
+                inp=stack.pop()
+                print('=',inp)
+                return False
             elif ch=="+":
                 inp=inp+stack.pop()
                 print('=',inp)
-                return
+                return False
             elif ch=="-":
                 inp=stack.pop()-inp
                 print('=',inp)
                 return False
+            elif ch=="~":
+                tmp=stack.pop()
+                stack.append(inp)
+                inp=tmp
+                print('=',inp)
+                return False                
             else:
-                print("ord=",ord(ch))
-                hilf()
+                print("ord=",ord(ch),"?")
+                cfg.hilf()
     except Exception as inst:
         print ("Menu",end=' ')        
         sys.print_exception(inst) 
