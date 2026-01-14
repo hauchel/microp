@@ -64,7 +64,7 @@ def listfiles():
     py_files.sort()  # optional, makes selection deterministic
     print()
     for i in range(len(py_files)):
-        print(i, py_files[i])    
+        print(f"{i:2d} {py_files[i]}")    
 
 
 def deepsl(ms):
@@ -200,7 +200,6 @@ def menu():
                    listfiles()
                 elif ch == "q" or ch == '\x04':       
                     print("\brestart with ", __name__ + ".menu() ")
-                    print("Vergiss: sys.modules.pop('" + __name__ + "', None)")
                     return
                 elif ch == "r":  # read 
                     readdev()

@@ -25,7 +25,9 @@ else:
     pinSCL = Pin(5)  # yell
     
 i2c = I2C(scl=pinSCL, sda=pinSDA)
-
+print("\bScanning...", end=' ')
+devs=i2c.scan()
+print(devs)
 poller = uselect.poll()
 poller.register(sys.stdin, uselect.POLLIN)
 
@@ -39,28 +41,44 @@ showas=15     # 1/0 überhaupt, wenn nix anderes Spannung
 shoraw=0      # 1 raw 
 shotmp=0      # 1 Temp
 showid=0      # 1 Widerst
-
+cmd=""   # Init-setting,overwr by cfg.
 verbo=False
 
-from myMCP4725 import MCP4725
-dac=MCP4725(i2c,96)
+try:
+    if 96 in devs:
+        from myMCP4725 import MCP4725
+        dac=MCP4725(i2c,96)
+        dac.set_value(0)
+    else: dac=None
+    
+    from myADS1115 import ADS1115
+    adcGain=1
+    adcRate=6
+    adcChan=0
+    if 72 in devs:
+        adc=ADS1115(i2c, address=72, gain=adcGain)
+    elif 75 in devs:
+        adc=ADS1115(i2c, address=75, gain=adcGain)
+    else: adc=None
+        
+    adc.set_conv(rate=adcRate, channel1=adcChan)
 
-from myADS1115 import ADS1115
-adcGain=1
-adcRate=4
-adcChan=0
-adc=ADS1115(i2c, address=72, gain=adcGain)
-adc.set_conv(rate=adcRate, channel1=adcChan)
+    from myKR import KENNL,REGL      
+    ken=KENNL(dac)               
+    reg=REGL()
 
-from myINA219 import INA219
-ina=INA219(i2c)
+    from myCONF import CONF
+    cfg=CONF()  
+    cmd=cfg.cmd
 
-from myKR import KENNL,REGL      
-ken=KENNL(dac)               
-reg=REGL()
+    if 64 in devs:
+        from myINA219 import INA219
+        ina=INA219(i2c)
+    else: ina=None
 
-from myCONF import CONF
-cfg=CONF()         
+except Exception as inst:
+            print ("Start",end=' ')
+            sys.print_exception(inst) 
 
 def prompt():
     print ('>',end="")
@@ -73,14 +91,11 @@ def inaZeig():
 
 def raw_to_r(raw, chan):    
     uin=adc.raw_to_v(raw)
-    return int(cfg.rtop[chan]*uin/(cfg.vcc-uin))
-        
-def raw_to_t(raw,chan):
-    T0=298.15
-    rntc=raw_to_r(raw,chan)
-    tempk = 1 / ((1/T0) + cfg.betar[chan] * log(rntc / cfg.rntc0[chan]))
-    return tempk - 273.15
-
+    if uin < 3.01: 
+        return int(cfg.rtop[chan]*uin/(cfg.vcc-uin))
+    else:
+        return 99999   # offener eingang
+         
 def show():
     tx="\b\b\b"
     for n in range(4):
@@ -94,7 +109,7 @@ def show():
                 tx+=f"{n}R: {raw_to_r(raw,n):5}  " 
                 druv=False
             if shotmp  & (1 << n):
-                tx+=f"{n}T: {raw_to_t(raw,n):4.2f}  "
+                tx+=f"{n}T: {cfg.temp(raw_to_r(raw,n),n):4.2f}  "
                 druv=False                
             if druv:
                 tx+=f"{n}V: {adc.raw_to_v(raw):3.3f}  "
@@ -104,10 +119,21 @@ def show():
     else:
         print()
 
+def setout(n):
+    p12 = Pin(12, Pin.OUT)        
+    if n & (1 << 0):
+        p12.on()
+        print("12 Hi")
+    else:
+        p12.off()
+        print("12 Lo")
+        
 def info():
     print(f"Alloc {gc.mem_alloc()}",end=" > ")
     gc.collect()
     print(f"Alloc {gc.mem_alloc()}  Free {gc.mem_free()}")
+    adcInfo()
+    reg.info()
     print("T",shotime," Z",showas," X",shotmp," Y",shoraw," W",showid)
     
 def menu(ch):   
@@ -131,19 +157,20 @@ def menu(ch):
                 print("Scanning...", end=' ')
                 print(i2c.scan())
             elif ch==" ":  #Nothalt
-                reg.stop()
-                dac.set_value(0)
-                ken.tick=0
                 shotick=0
+                reg.stop()
+                if dac is not None: dac.set_value(0)
+                ken.tick=0
             elif ch=="a":      
-                print(adc.read(rate=adcRate, channel1=adcChan))                
+                raw=adc.read(rate=adcRate, channel1=adcChan)
+                print(f"{raw} = {adc.raw_to_v(raw):3.3f}V")                
             elif ch=="A":      
                 ken.klA=inp
                 ken.parms()
             elif ch=="B":   
                 tmp=stack.pop()
                 stack.append(tmp)
-                cfg.betar[inp]=1.0/tmp
+                cfg.betar[tmp]=1.0/inp
                 cfg.show()                
             elif ch=="c": 
                 adcChan=inp
@@ -156,7 +183,9 @@ def menu(ch):
                 ken.parms()
             elif ch=="E":      
                 ken.klE=inp
-                ken.parms()                
+                ken.parms() 
+            elif ch=="f": 
+                setout(inp)
             elif ch=="g": 
                 adcGain=inp
                 adc.gain=adcGain
@@ -176,14 +205,20 @@ def menu(ch):
             elif ch=="N":      
                 ken.klN=inp
                 ken.parms()   
+            elif ch=="n":      
+                cfg.showint()                 
             elif ch=="M":      #w,n aber 
                 tmp=stack.pop()
                 stack.append(tmp)
-                cfg.rtop[inp]=tmp
+                cfg.rtop[tmp]=inp
                 cfg.show()
             elif ch=="o":      
                 dac.set_value(inp)
                 print ("dac" ,inp)
+            elif ch=="p": 
+                adcRate=inp
+                adc.set_conv(rate=adcRate, channel1=adcChan)
+                adcInfo()                      
             elif ch=="q" or ch == '\x04':       # quit
                 print ("restart with ",__name__+".loop() ")
                 return True
@@ -216,27 +251,21 @@ def menu(ch):
                 verbo = not verbo
                 print("verbo", verbo)  
             elif ch=="V":      
-                cfg.vcc=inp
+                cfg.vcc=inp/1000.0
                 cfg.show()      
-            elif ch=="W":
+            elif ch=="w":
                 showid=inp
                 print("showid", showid,':') 
-                show()   
-            elif ch=="x": 
-                adcRate=inp
-                adc.set_conv(rate=adcRate, channel1=adcChan)
-                adcInfo()                    
-            elif ch=="X":
+                show()                      
+            elif ch=="x":
                 shotmp=inp
                 print("shotmp", shotmp,':') 
                 show()                                 
-            elif ch=="Y":
+            elif ch=="y":
                 shoraw=inp
                 print("shoraw", shoraw,':') 
-                show()                      
+                show()                                        
             elif ch=="z":
-                show()                   
-            elif ch=="Z":
                 showas=inp
                 print("show", showas,':') 
                 show()                     
@@ -282,6 +311,10 @@ def loop():
             if poller.poll(0):
                 ch=sys.stdin.read(1)
                 if menu(ch): break
+            if len(cmd) !=0:
+                ch=cmd[0]
+                cmd=cmd[1:]
+                if menu(ch): break                   
             tim=time.ticks_ms()
             if reg.tick >0:  #Regler first
                 difftick = time.ticks_diff(tim, lastreg)

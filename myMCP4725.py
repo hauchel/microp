@@ -1,4 +1,12 @@
 # von https://github.com/JeanMariePrevost/mcp4725-micropython/blob/main/mcp4725.py
+"""
+from 
+from machine import I2C,Pin
+pinSDA = Pin(4)  # green
+pinSCL = Pin(5)  # yell   
+i2c = I2C(scl=pinSCL, sda=pinSDA)
+"""
+
 class MCP4725:
     def __init__(self, i2c, address: int = 0x60, vcc: float = 3.3) -> None:
         """
@@ -33,35 +41,3 @@ class MCP4725:
         buf = self.i2c.readfrom(self.address, 5)
         return ((buf[1] << 4) | (buf[2] >> 4)) & 0xFFF
 
-    def set_voltage(self, voltage: float) -> None:
-        """
-        Set DAC output voltage.
-        NOTE: Cannot truly measure voltage, only used as a shorthand based on the reference voltage.
-        :param voltage: Desired output voltage (0 to VCC)
-        """
-        value = self._voltage_to_value(voltage)
-        self.set_value(value)
-
-    def get_voltage(self) -> float:
-        """
-        Get current DAC output voltage.
-        NOTE: Cannot truly measure voltage, only used as a shorthand based on the reference voltage.
-        :return: Current voltage as float
-        """
-        value = self.get_value()
-        return self._value_to_voltage(value)
-
-    def set_value_norm(self, value: float) -> None:
-        """
-        Set DAC output using normalized value (0.0 to 1.0).
-        Fast mode, does not write EEPROM.
-        :param value: Float between 0.0 and 1.0 (0% to 100%)
-        """
-        value = max(0.0, min(1.0, float(value)))
-        dac_value = int(value * 4095)
-        self.set_value(dac_value)
-
-    def get_value_norm(self) -> float:
-        """Get current DAC value as normalized value (0.0 to 1.0)"""
-        value = self.get_value()
-        return value / 4095

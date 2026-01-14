@@ -113,8 +113,6 @@ IO12			IO16
 IO13
 VCC
 
-mpy-cross myscript.py
-
 #QMC5883
 7.1 Setup
  Write Register 0BH by 0x01 (Define Set/Reset period)
@@ -201,15 +199,42 @@ cmd /c  "d:\esp\microp\putf "  $(FILE_NAME)  47
 Plugins → NppExec → Advanced Options…
 Associated Script
 put..  restart B
-
 Zuordnen zu F1,F2
 Settings → Shortcut Mapper → Plugin Commands
 
 I2C Crossbar  Top View
-                  ADS 1115      Display
+                ADS 1115      Display
    Stecker
-  ---- VCC      .+....        ..+....
-  ---- Gnd      ..+...        .+.....
-  ---- SDA      ....+.        ....+.
-  ---- SCL      ...+..        ...+..
+  ---- VCC      +....       .+....
+  ---- Gnd      .+...       +.....
+  ---- SDA      ...+.       ...+.
+  ---- SCL      ..+..       ..+..
   ---- NC       ......        ......
+  
+  
+stl thumbnails: papas best
+================
+
+espnow
+espn basics und configs
+
+FreeCad:
+==========
+Wandstärke 1,26 mm
+Boden 1,6 mm
+Schalter r=3,3 x=6 z=11 Wand 2mm h=17
+
+Temp 240
+
+I2c: x
+Stecker auf 1. Lochreihe, Buchse 10 mm frei
+1. Löt in 
+Standard  6: 13 Loch = 33 mm Geh 37 mm
+Standard 10: 17 Loch = 45 mm Geh 48
+
+D1 Box:
+typ 7 
+Widerstand
+Ref     Anz3   Anz2
+9,89    9853      
+6,80    6788

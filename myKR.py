@@ -64,8 +64,8 @@ class REGL:
     def __init__(self):
         # Strom in A:
         self.soll=0 
-        self.abwd=[   -0.1,   -0.05, -0.01,  -0.002,  +0.002,    +0.01,   +0.05,     +0.1]
-        self.sted=[ -50  , -10  ,  -3  ,   -1  ,    0   ,      +1,      +3,      +10      , +50 ] # wenn < abwd dieses sted
+        self.abwd=[   -0.1,   -0.05, -0.01,  -0.002,  +0.002,    +0.01,   +0.05,     +0.1,      +0.2]
+        self.sted=[ -50  , -10  ,  -3  ,   -1  ,    0   ,      +1,      +3,      +20      , +100,     +150 ] # wenn < abwd dieses sted
         self.stetop=len(self.sted)-1     # zeigt auf grösstes sted
         # Stellwert 0 .. 4095
         self.stell=0
@@ -116,4 +116,4 @@ class REGL:
         return self.stell
 
     def info(self):
-        print("Soll",self.soll,"Soll",self.soll,"Tick ",self.tiset,"Akt",self.tick,"Say",self.sayset)
+        print("Soll",self.soll,"Stell",self.stell,"Tick ",self.tiset,"Akt",self.tick,"Say",self.sayset)
