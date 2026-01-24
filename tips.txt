@@ -42,7 +42,7 @@ import sys
 sys.exit()
 
 #compiler
-mpy-cross myscript.py
+mpy-cross pelt.py
 
 #exceptions
 try:
@@ -228,13 +228,29 @@ Temp 240
 
 I2c: x
 Stecker auf 1. Lochreihe, Buchse 10 mm frei
-1. Löt in 
+1. Löt in x..x
 Standard  6: 13 Loch = 33 mm Geh 37 mm
 Standard 10: 17 Loch = 45 mm Geh 48
 
 D1 Box:
-typ 7 
+typ 7 j16
+
+
 Widerstand
-Ref     Anz3   Anz2
-9,89    9853      
-6,80    6788
+Ref     Anz3   Anz2   Anz1   Anz0
+RTop    6754   6708   6705   6760
+9,90    9872   9874   9877   9876
+6,82    6826   6828   6828   6804
+3,285   3283   3283   3283   3283
+
+full cool      1       3        
+600   11.4   18140    19000   kk 30.5 dauer
+500   12.2   17620    18440   kk 28.6 dauer
+800    9.5   19731    20800   kk 33.2 peak
+500   11.8   17945    18753   kk 29.0  long
+1000   8.7   20526    21710   kk   31      peak
+
+no cool
+200   15.9   15531    15633   kk 27.4  dauer 
+300   14.7   16464    16600            peak
+      15.3   15888    16005      33.0

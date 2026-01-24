@@ -1,14 +1,24 @@
 import network
 import time
-wlan = network.WLAN(network.STA_IF)
-wlan.active(True)
-print("wlan ",wlan.active())
-wlan.connect('FRITZ!HH','47114711')
-for i in range(10):
-    print ("Wait Connect",i)
-    if wlan.isconnected():
-        break
-    time.sleep(1)
-print("i=",i)
 import webrepl
-webrepl.start()
+class conn:
+    def __init__(self):
+        self.wlan = network.WLAN(network.STA_IF)
+    
+    def an(self):
+        self.wlan.active(True)
+        print("an, self.wlan",self.wlan.active())
+        self.wlan.connect('FRITZ!HH','47114711')
+        for i in range(10):
+            print ("Wait Connect",i)
+            if self.wlan.isconnected(): break
+            time.sleep(1)
+        webrepl.start()
+        
+    def aus(self):
+        self.wlan.active(False)
+        print("aus, self.wlan",self.wlan.active())
+
+nw=conn()
+nw.an()
+print("conn.nw.an()")

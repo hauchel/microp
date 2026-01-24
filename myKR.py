@@ -116,4 +116,4 @@ class REGL:
         return self.stell
 
     def info(self):
-        print("Soll",self.soll,"Stell",self.stell,"Tick ",self.tiset,"Akt",self.tick,"Say",self.sayset)
+        print("Soll",self.soll,"Stell",self.stell,"Min",self.stellMin,"Max",self.stellMax,"Tick ",self.tiset,"Akt",self.tick,"Say",self.sayset)

@@ -9,7 +9,6 @@ import sys
 import uselect
 import time
 import gc
-from math import log
 from machine import I2C,Pin
 
 impl=sys.implementation[2].split()[-1]  #ESP32 ESP32C3 ESP8266
@@ -44,41 +43,52 @@ showid=0      # 1 Widerst
 cmd=""   # Init-setting,overwr by cfg.
 verbo=False
 
-try:
-    if 96 in devs:
+if 35 in devs:
+    try:
+        from myBH1750 import BH1750
+        lum= BH1750(bus=i2c, addr=35)
+    except Exception as inst:
+        print ("lum",end=' ')
+        sys.print_exception(inst) 
+        lum=None
+else: lum=None
+
+if 96 in devs:
+    try:
         from myMCP4725 import MCP4725
         dac=MCP4725(i2c,96)
         dac.set_value(0)
-    else: dac=None
-    
+    except Exception as inst:
+        print ("dac",end=' ')
+        sys.print_exception(inst) 
+        dac=None    
+else: dac=None
+
+from myKR import KENNL,REGL      
+ken=KENNL(dac)               
+reg=REGL()
+
+from myCONF import CONF
+cfg=CONF()  
+cmd=cfg.cmd
+cfg.readint()
+if 64 in devs:
+    from myINA219 import INA219
+    ina=INA219(i2c)
+else: ina=None
+
+adcGain=1
+adcRate=6
+adcChan=0
+if 72 in devs:
     from myADS1115 import ADS1115
-    adcGain=1
-    adcRate=6
-    adcChan=0
-    if 72 in devs:
-        adc=ADS1115(i2c, address=72, gain=adcGain)
-    elif 75 in devs:
-        adc=ADS1115(i2c, address=75, gain=adcGain)
-    else: adc=None
-        
-    adc.set_conv(rate=adcRate, channel1=adcChan)
+    adc=ADS1115(i2c, address=72, gain=adcGain)
+elif 75 in devs:
+    from myADS1115 import ADS1115
+    adc=ADS1115(i2c, address=75, gain=adcGain)
+else: adc=None
+if adc: adc.set_conv(rate=adcRate, channel1=adcChan)
 
-    from myKR import KENNL,REGL      
-    ken=KENNL(dac)               
-    reg=REGL()
-
-    from myCONF import CONF
-    cfg=CONF()  
-    cmd=cfg.cmd
-
-    if 64 in devs:
-        from myINA219 import INA219
-        ina=INA219(i2c)
-    else: ina=None
-
-except Exception as inst:
-            print ("Start",end=' ')
-            sys.print_exception(inst) 
 
 def prompt():
     print ('>',end="")
@@ -113,12 +123,13 @@ def show():
                 druv=False                
             if druv:
                 tx+=f"{n}V: {adc.raw_to_v(raw):3.3f}  "
-    print(tx,end=' ')
-    if showas & (1 << 4):
-        print(f"U={ina.read_voltage():2.3f} I={ina.read_current():2.3f}")
-    else:
-        print()
-
+ 
+    if showas & (1 << 4):  #32
+        tx+=f"U={ina.read_voltage():5.3f} I={ina.read_current():5.3f}"
+    if showas & (1 << 5):  #64
+        tx+=f" L={lum.luminance(BH1750.CONT_HIRES_1):5.0f}"                   
+    print(tx)
+       
 def setout(n):
     p12 = Pin(12, Pin.OUT)        
     if n & (1 << 0):
@@ -127,7 +138,19 @@ def setout(n):
     else:
         p12.off()
         print("12 Lo")
-        
+
+def dofix(p):
+    #1 und 3 anpassen
+    raw=adc.read(rate=adcRate, channel1=0) 
+    tmp=round(100.0*adc.raw_to_v(raw),1) #0.213V-> 21.3
+    n=1
+    raw=adc.read(rate=adcRate, channel1=n) 
+    wid1=raw_to_r(raw,n)
+    n=3
+    raw=adc.read(rate=adcRate, channel1=n) 
+    wid3=raw_to_r(raw,n)
+    cfg.fix(p,tmp,wid1,wid3)
+    
 def info():
     print(f"Alloc {gc.mem_alloc()}",end=" > ")
     gc.collect()
@@ -163,7 +186,7 @@ def menu(ch):
                 ken.tick=0
             elif ch=="a":      
                 raw=adc.read(rate=adcRate, channel1=adcChan)
-                print(f"{raw} = {adc.raw_to_v(raw):3.3f}V")                
+                print(f"{raw} = {adc.raw_to_v(raw):4.4f}V")                
             elif ch=="A":      
                 ken.klA=inp
                 ken.parms()
@@ -185,7 +208,10 @@ def menu(ch):
                 ken.klE=inp
                 ken.parms() 
             elif ch=="f": 
-                setout(inp)
+                dofix(inp)
+            elif ch=="F": 
+                cfg.writeint()                
+                print("Written")
             elif ch=="g": 
                 adcGain=inp
                 adc.gain=adcGain
@@ -202,16 +228,18 @@ def menu(ch):
             elif ch=="K":      
                 ken.klK=inp
                 ken.parms()
+            elif ch=="l":      
+                lux = lum.luminance(BH1750.CONT_HIRES_1)
+                print(f"= {lux:5.0f}")                          
             elif ch=="N":      
                 ken.klN=inp
                 ken.parms()   
-            elif ch=="n":      
-                cfg.showint()                 
-            elif ch=="M":      #w,n aber 
-                tmp=stack.pop()
-                stack.append(tmp)
-                cfg.rtop[tmp]=inp
-                cfg.show()
+            elif ch=="n":
+                pass
+            elif ch=="m":      
+                cfg.showint()   
+            elif ch=="M":      
+                cfg.readint()                 
             elif ch=="o":      
                 dac.set_value(inp)
                 print ("dac" ,inp)
@@ -221,6 +249,7 @@ def menu(ch):
                 adcInfo()                      
             elif ch=="q" or ch == '\x04':       # quit
                 print ("restart with ",__name__+".loop() ")
+                if dac is not None: dac.set_value(0)
                 return True
             elif ch=="r":      
                 reg.start(inp)
@@ -256,7 +285,12 @@ def menu(ch):
             elif ch=="w":
                 showid=inp
                 print("showid", showid,':') 
-                show()                      
+                show()         
+            elif ch=="W":      #w,n aber 
+                tmp=stack.pop()
+                stack.append(tmp)
+                cfg.rtop[tmp]=inp
+                cfg.show()                  
             elif ch=="x":
                 shotmp=inp
                 print("shotmp", shotmp,':') 
@@ -330,7 +364,8 @@ def loop():
                 difftick = time.ticks_diff(tim, lastken)
                 if difftick > ken.tick:
                     lastken = tim
-                    ken.store([ina.read_current(),ina.read_voltage()])                
+                    ken.store([ina.read_current(),int(lum.luminance(BH1750.CONT_HIRES_1))])                                    
+                    #ken.store([ina.read_current(),ina.read_voltage()])                
         except Exception as inst:
             print ("Loop",end=' ')
             sys.print_exception(inst)   

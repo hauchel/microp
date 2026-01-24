@@ -9,7 +9,7 @@ class CONF:
         self.intwid3=[17562, 17249, 16887,  16520, 14810, 13625, 12152, 11519, 10181, 9382, 8536, 7110, 5633, 4684]        
         self.inttmp =[ 12.5,  13.9,  14.3,   15.3,  17.2,  19.0,  21.8,  22.5,  25.3, 27.0, 28.9, 33.0, 38.5, 42.8]
         #                                                 700
-        self.cmd="10ztx"
+        self.cmd="11z10wx"
         
     def show(self):
         print (f"Vcc {self.vcc:2.3f}V")
@@ -18,11 +18,43 @@ class CONF:
     
     def showint(self):
         print("      1        2        3")
-        for i in range(len(self.inttmp)):
-            print(f"{i:2} {self.inttmp[i]:4.1f}  {self.intwid1[i]:5d}  {self.intwid2[i]:5d}  {self.intwid3[i]:5d}")
+        i=0
+        print(f"{i:2} {self.inttmp[i]:4.1f}  {self.intwid1[i]:5d}              {self.intwid3[i]:5d}")
+        for i in range(1,len(self.inttmp)):
+            dt=self.inttmp[i]-self.inttmp[i-1]
+            dw1=self.intwid1[i]-self.intwid1[i-1]
+            uw1=float(dw1)/dt
+            dw3=self.intwid3[i]-self.intwid3[i-1]
+            uw3=float(dw3)/dt
+            print(f"{i:2} {self.inttmp[i]:4.1f}  {self.intwid1[i]:5d}  {uw1:+6.1f}  {self.intwid3[i]:5d} {uw3:+6.1f}")
 
+    def readint(self):
+        self.intwid1=[]
+        self.intwid2=[]
+        self.intwid3=[]
+        self.inttmp=[]
+        with open('temps.txt', "r") as fsrc:
+            for line in fsrc:
+                sp=line.split()
+                self.inttmp.append(float(sp[0]))
+                self.intwid1.append(int(sp[1]))
+                self.intwid2.append(int(sp[2]))
+                self.intwid3.append(int(sp[3]))
+
+    def writeint(self):
+        with open('temps.txt', "w") as f:
+            for i in range(len(self.inttmp)):
+                s=f"{self.inttmp[i]:4.1f} {self.intwid1[i]:5d} {self.intwid2[i]:5d} {self.intwid3[i]:5d} \n"
+                f.write(s)
+            
+    def fix(self,pos,tmp,wid1,wid3):
+        print(f"Fix {pos:2} {tmp:4.1f}  {wid1:5d}  {wid3:5d}")
+        self.inttmp[pos]=tmp
+        self.intwid1[pos]=wid1
+        self.intwid3[pos]=wid3
+        self.showint()
+        
     def temp(self,wid,chan):
-        # außerhalb des Bereichs begrenzen
         if chan==3:
             iwi=self.intwid3
         elif chan==1:
@@ -56,9 +88,9 @@ class CONF:
     ..z     1,2,4,8 zeigt chan 0 1 2 3, 16 ina
     ..y             raw
     ..w             Widerstand 
-    ..x             Temp benutzt
+    ..x             Temp 
     ..V      Vcc 
-    ..,..M   rtop Kanal n z.B. 0,10005M
+    ..,..W   rtop Kanal n z.B. 0,10005M
     ..,..B 
     
 dac:    
@@ -68,7 +100,7 @@ ina:
     u       Spannung
 adc:
     ..c     Channel 0..3 4..7
-    ..g     Gain 0=2/3*,1=1*,2=2*,3=4*,4=8*, 5=16*
+    ..g     Gain 0=6V,1=4V,2=2V,3=1V,4=0.5V, 5=0.256V
     ..p     Rate 0..7
     a       read
     d       read_rev (!)
