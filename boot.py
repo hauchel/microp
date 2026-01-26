@@ -10,25 +10,11 @@ esp.osdebug(None)
 from machine import Pin
 p14 = Pin(14, Pin.IN, Pin.PULL_UP)
 print("\nGPIO 14 ",p14.value())
-import network
-import time
-
+from myconn import conn
+nw=conn()
 if p14.value()==1 :   
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    wlan.connect('FRITZ!HH','47114711')
-    #wlan.connect('NETGEAR','12345678')
-    hots=network.WLAN(network.AP_IF)
-    hots.active(False)
-    for i in range(10):
-        print ("Wait Connect",i)
-        if wlan.isconnected():
-            break
-        time.sleep(1)
-    import webrepl
-    webrepl.start()
+    nw.an()
 else:
     print("\nGPIO 14 ",p14.value(),'No Connect!')
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(False)
+    nw.aus()
 print("boot done")

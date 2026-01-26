@@ -2,9 +2,10 @@
 # Gpios:
 # 5 (SCL)
 # 4 (SDA)
-# 72 adc  ADS1115
-# 96 dac  MCP4725
-# 64      INA219
+# 35    lum  BH1750
+# 64    ina  INA219
+# 72 75 adc  ADS1115
+# 96    dac  MCP4725
 import sys
 import uselect
 import time
@@ -12,10 +13,9 @@ import gc
 from machine import I2C,Pin
 
 impl=sys.implementation[2].split()[-1]  #ESP32 ESP32C3 ESP8266
-print('Howdy, Running on',impl)
+print('pelt running on',impl)
 
 # some globals    
-start = time.ticks_ms()
 if impl=='ESP32C3':
     pinSDA = Pin(8)  # green
     pinSCL = Pin(9)  # yell
@@ -40,8 +40,10 @@ showas=15     # 1/0 überhaupt, wenn nix anderes Spannung
 shoraw=0      # 1 raw 
 shotmp=0      # 1 Temp
 showid=0      # 1 Widerst
+shomed=0      # anzahl miwe
 cmd=""   # Init-setting,overwr by cfg.
 verbo=False
+raws=[[], [], [], []]
 
 if 35 in devs:
     try:
@@ -77,6 +79,7 @@ if 64 in devs:
     ina=INA219(i2c)
 else: ina=None
 
+
 adcGain=1
 adcRate=6
 adcChan=0
@@ -110,7 +113,11 @@ def show():
     tx="\b\b\b"
     for n in range(4):
         if showas & (1 << n):
-            raw=adc.read(rate=adcRate, channel1=n)   
+            raw=adc.read(rate=adcRate, channel1=n)  
+            if shomed > 0:
+                raws[n].append(raw)
+                if len(raws[n])>shomed:
+                    raws[n].pop(0)
             druv=True       #voltage nur wenn nix anderes
             if shoraw  & (1 << n):
                 tx+=f"{n}D: {raw:5}  "
@@ -129,7 +136,17 @@ def show():
     if showas & (1 << 5):  #64
         tx+=f" L={lum.luminance(BH1750.CONT_HIRES_1):5.0f}"                   
     print(tx)
-       
+    if verbo: print(raws)
+
+def evalmed():
+    print("ata:")
+    for n in range(4):
+        if len(raws[n])>0:
+            mi=min(raws[n])
+            ma=max(raws[n])
+            di=ma-mi
+            print(f"{n} {di:3}  {mi:5}  {ma:5} ",raws[n])
+    
 def setout(n):
     p12 = Pin(12, Pin.OUT)        
     if n & (1 << 0):
@@ -140,16 +157,16 @@ def setout(n):
         print("12 Lo")
 
 def dofix(p):
-    #1 und 3 anpassen
+    #2 und 3 anpassen
     raw=adc.read(rate=adcRate, channel1=0) 
     tmp=round(100.0*adc.raw_to_v(raw),1) #0.213V-> 21.3
-    n=1
+    n=2
     raw=adc.read(rate=adcRate, channel1=n) 
-    wid1=raw_to_r(raw,n)
+    wid2=raw_to_r(raw,n)
     n=3
     raw=adc.read(rate=adcRate, channel1=n) 
     wid3=raw_to_r(raw,n)
-    cfg.fix(p,tmp,wid1,wid3)
+    cfg.fix(p,tmp,wid2,wid3)
     
 def info():
     print(f"Alloc {gc.mem_alloc()}",end=" > ")
@@ -157,12 +174,12 @@ def info():
     print(f"Alloc {gc.mem_alloc()}  Free {gc.mem_free()}")
     adcInfo()
     reg.info()
-    print("T",shotime," Z",showas," X",shotmp," Y",shoraw," W",showid)
+    print("T",shotime," Z",showas," X",shotmp," Y",shoraw," W",showid,)
     
 def menu(ch):   
     global inpStr,inpAkt,inp, stack
-    global shotime, showas, shotick, shoraw,showid,shotmp
-    global verbo
+    global shotime, showas, shotick, shoraw,showid,shotmp,shomed
+    global verbo, raws
     global adcGain, adcRate, adcChan
     try:         
         if ((ch >= '0') and (ch <= '9')):
@@ -190,17 +207,15 @@ def menu(ch):
             elif ch=="A":      
                 ken.klA=inp
                 ken.parms()
-            elif ch=="B":   
-                tmp=stack.pop()
-                stack.append(tmp)
-                cfg.betar[tmp]=1.0/inp
-                cfg.show()                
+            elif ch=="B": 
+                shomed=inp
+                print("Shomed",inp)         
             elif ch=="c": 
                 adcChan=inp
                 adc.set_conv(rate=adcRate, channel1=adcChan)
                 adcInfo()
             elif ch=="d":      
-                print(adc.read_rev())
+                evalmed()
             elif ch=="D":      
                 ken.klD=inp
                 ken.parms()
@@ -239,7 +254,8 @@ def menu(ch):
             elif ch=="m":      
                 cfg.showint()   
             elif ch=="M":      
-                cfg.readint()                 
+                cfg.readint() 
+                print("Read")                
             elif ch=="o":      
                 dac.set_value(inp)
                 print ("dac" ,inp)
@@ -267,6 +283,7 @@ def menu(ch):
             elif ch=="t":
                 if shotick==0:
                     shotick=shotime
+                    raws=[[], [], [], []]
                     print()
                     return False
                 else:
@@ -333,13 +350,17 @@ def menu(ch):
     prompt()
     return False
 
+from conn import conn
+nw=conn()
+
 def loop():
     global cmd
     tim=time.ticks_ms()
     lastsho=tim
     lastken=tim
     lastreg=tim
-    
+    print ("Loop:")
+    nw.aus()
     while True:
         try:
             if poller.poll(0):

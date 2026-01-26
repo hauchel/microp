@@ -1,6 +1,7 @@
-wlan = network.WLAN(network.STA_IF)
-wlan.active(False)
-print("main wlan ",wlan.active())
 import pelt
-import conn
-#import bas
+from myconn import conn
+nw=conn()
+nw.an()
+import gc
+gc.collect()
+print(f"Alloc {gc.mem_alloc()}  Free {gc.mem_free()}")

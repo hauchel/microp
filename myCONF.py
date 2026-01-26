@@ -9,7 +9,7 @@ class CONF:
         self.intwid3=[17562, 17249, 16887,  16520, 14810, 13625, 12152, 11519, 10181, 9382, 8536, 7110, 5633, 4684]        
         self.inttmp =[ 12.5,  13.9,  14.3,   15.3,  17.2,  19.0,  21.8,  22.5,  25.3, 27.0, 28.9, 33.0, 38.5, 42.8]
         #                                                 700
-        self.cmd="11z10wx"
+        self.cmd="13z0w12x"
         
     def show(self):
         print (f"Vcc {self.vcc:2.3f}V")
@@ -17,16 +17,16 @@ class CONF:
             print(f"{i} Rtop{self.rtop[i]:6}M")
     
     def showint(self):
-        print("      1        2        3")
+        print("         2             3")
         i=0
-        print(f"{i:2} {self.inttmp[i]:4.1f}  {self.intwid1[i]:5d}              {self.intwid3[i]:5d}")
+        print(f"{i:2} {self.inttmp[i]:4.1f}  {self.intwid2[i]:5d}              {self.intwid3[i]:5d}")
         for i in range(1,len(self.inttmp)):
             dt=self.inttmp[i]-self.inttmp[i-1]
-            dw1=self.intwid1[i]-self.intwid1[i-1]
-            uw1=float(dw1)/dt
+            dw2=self.intwid2[i]-self.intwid2[i-1]
+            uw2=float(dw2)/dt
             dw3=self.intwid3[i]-self.intwid3[i-1]
             uw3=float(dw3)/dt
-            print(f"{i:2} {self.inttmp[i]:4.1f}  {self.intwid1[i]:5d}  {uw1:+6.1f}  {self.intwid3[i]:5d} {uw3:+6.1f}")
+            print(f"{i:2} {self.inttmp[i]:4.1f}  {self.intwid2[i]:5d}  {uw2:+6.1f}  {self.intwid3[i]:5d} {uw3:+6.1f}")
 
     def readint(self):
         self.intwid1=[]
@@ -47,10 +47,10 @@ class CONF:
                 s=f"{self.inttmp[i]:4.1f} {self.intwid1[i]:5d} {self.intwid2[i]:5d} {self.intwid3[i]:5d} \n"
                 f.write(s)
             
-    def fix(self,pos,tmp,wid1,wid3):
-        print(f"Fix {pos:2} {tmp:4.1f}  {wid1:5d}  {wid3:5d}")
+    def fix(self,pos,tmp,wid2,wid3):
+        print(f"Fix {pos:2} {tmp:4.1f}  {wid2:5d}  {wid3:5d}")
         self.inttmp[pos]=tmp
-        self.intwid1[pos]=wid1
+        self.intwid2[pos]=wid2
         self.intwid3[pos]=wid3
         self.showint()
         
@@ -59,10 +59,13 @@ class CONF:
             iwi=self.intwid3
         elif chan==1:
             iwi=self.intwid1            
-        else:
+        elif chan==2:
             iwi=self.intwid2
+        else:
+            print("Invalid chan",chan)
+            return 888
         if wid <= iwi[-1]:
-            return 999
+            return 990
         if wid >= iwi[0]:
             return 999
         # passendes Intervall suchen
@@ -75,23 +78,23 @@ class CONF:
                 # lineare Interpolation
                 return y0 + (wid - x0) * (y1 - y0) / (x1 - x0)
 
-        return 999  # sollte nie passieren
+        return 995  # inconsistent table
 
 
     def hilf(self):
         print("""
  Show:
-    ..a     
-    z       zeig einmal:
+    z       zeig einmal oder
     t       dauer mit 
     ..T     tick in ms 
-    ..z     1,2,4,8 zeigt chan 0 1 2 3, 16 ina
+    ..z     1,2,4,8 zeigt chan 0 1 2 3, 16 ina, 32 lum
     ..y             raw
     ..w             Widerstand 
     ..x             Temp 
     ..V      Vcc 
+    d        Min/Max raw 
+    ..B      Anzahl für d, 0 nix
     ..,..W   rtop Kanal n z.B. 0,10005M
-    ..,..B 
     
 dac:    
     ..o     out dac 0..4095
@@ -103,11 +106,11 @@ adc:
     ..g     Gain 0=6V,1=4V,2=2V,3=1V,4=0.5V, 5=0.256V
     ..p     Rate 0..7
     a       read
-    d       read_rev (!)
 Kennlinie fuer o
       k      erzeuge mit 
     ..A      Anfangswert
     ..D      Delta
+    ..E      Endwert
     ..N      Anzahl
     ..K      kltime in ms
 Regler:
@@ -115,7 +118,6 @@ Regler:
     ..R      tick
     s        single 
     ..S      zeig 0: nix, >0: zeig alle ..,  <0: nur wenn diff >=..
-    .. 
  Sonst: 
     ,        push
     .        pop
