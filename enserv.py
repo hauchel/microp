@@ -21,54 +21,8 @@ cmd=''         # command received
 nachricht='m'  # to send
 ticktime=0     #
 
-
-pidef= {2:1,4:0,5:0}    #default for outports
-pins = {}
-for p in pidef:
-    pins[p]=machine.Pin(p, machine.Pin.OUT)
-    pins[p].value(pidef[p])
-
 myn=espn()
 
-def setpin(pi,va):
-    print ("setpin",pi,va)
-    if va==0:
-        pins[pi].off()
-    else:
-        pins[pi].on()
-
-def pinh(pi,du):
-    print ("hpin",pi,du)
-    if pidef[pi]==0:
-        pins[pi].on()
-    else:
-        pins[pi].off()
-    time.sleep_ms(du)
-    pins[pi].value(pidef[pi])
-
-def deepsl(ms):
-    print("Deepsl",ms)
-    if myn.is32:
-        from machine import deepsleep
-        deepsleep(ms)
-
-    # 8266, connect GPIO16 to the reset pin
-    # configure RTC.ALARM0 to be able to wake the device
-    rtc = machine.RTC()
-    rtc.irq(trigger=rtc.ALARM0, wake=machine.DEEPSLEEP)
-    # set RTC.ALARM0 to fire after 10 seconds (waking the device)
-    rtc.alarm(rtc.ALARM0, ms)
-    # put the device to sleep
-    machine.deepsleep()    
-    print("Hä?")
- 
-def lightsl(ms):
-    # 8266: 0 NONE, 1 LIGHT 2 MODEM
-    myn.wlan.active(False)
-    print("Light",myn.wlan.active()) 
-    machine.lightsleep(ms)
-    myn.wlan.active(True)
-    
 def hilf():
     print("""
     ..a     ack 0/1
@@ -170,7 +124,6 @@ def menu(ch):
             elif ch=="N":                
                 deepsl(inp)                   
             elif ch=="q" or ch == '\x04':       # quit
-                myn.conn(False)
                 print ("restart with ",__name__+".loop() ")
                 return True
             elif ch=="p":
@@ -188,7 +141,7 @@ def menu(ch):
             elif ch=="w":
                 myn.wlan.active(inp!=0)
                 print("wlan",myn.wlan.active())                 
-            elif ch=="'":
+            elif ord(ch)==228:  #ä
                 inpStr=''
                 strmode=True
                 return
@@ -203,6 +156,9 @@ def menu(ch):
                 inp=stack.pop()-inp
                 print('=',inp)
                 return
+            elif ch==" ":
+                ticktime=0
+                print("tick 0 ms")                   
             else:
                 print("ord=",ord(ch))
                 hilf()
@@ -222,8 +178,8 @@ def loop():
                 cmd=cmd[1:]
                 if menu(ch): break    
             if myn.e.any():
-                cmd+=myn.recv()
-                if myn.verbo: print('>'+cmd+'<')
+                host, msg = myn.recsrv()
+                print("any",host,msg)
             if poller.poll(0):
                 ch=sys.stdin.read(1)
                 if menu(ch): break

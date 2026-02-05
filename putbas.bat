@@ -1,1 +1,7 @@
-python webrepl_cli.py -p p bas.py 192.168.178.%1:/bas.py
+d:
+cd /esp/microp/
+set P=COM%1
+ampy --port %P% put boot.py boot.py
+ampy --port %P% put webrepl_cfg.py webrepl_cfg.py
+ampy --port %P% put myconn.py myconn.py
+ampy --port %P% put bas.mpy bas.mpy

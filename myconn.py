@@ -3,21 +3,23 @@ import time
 import webrepl
 class conn:
     def __init__(self):
-        self.wlan = network.WLAN(network.STA_IF)
-        #self.wlan.active(False)
+        self.ap=network.WLAN(network.WLAN.IF_AP)
+        if self.ap.active(): self.ap.active(False)   #somehow it remembers status of previous settings
+        self.sta = network.WLAN(network.WLAN.IF_STA)
+        #self.sta.active(False)
     def an(self):
-        self.wlan.active(True)
-        print("conn.an, self.wlan",self.wlan.active())
-        self.wlan.connect('FRITZ!HH','47114711')
+        self.sta.active(True)
+        print("conn.an, self.sta",self.sta.active())
+        self.sta.connect('FRITZ!HH','47114711')
         for i in range(10):
             print ("Wait Connect",i)
-            if self.wlan.isconnected(): break
+            if self.sta.isconnected(): break
             time.sleep(1)
         webrepl.start()
         
     def aus(self):
-        self.wlan.active(False)
-        print("conn.aus, self.wlan",self.wlan.active())
+        self.sta.active(False)
+        print("conn.aus, self.sta",self.sta.active())
 
 #nw=conn()
 #nw.an()

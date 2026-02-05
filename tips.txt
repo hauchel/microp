@@ -41,9 +41,6 @@ print(f"{pi:8.2f}")    # '    3.14' (Breite 8, 2 Nachkommastellen)
 import sys
 sys.exit()
 
-#compiler
-mpy-cross pelt.py
-
 #exceptions
 try:
     1/0
@@ -137,6 +134,18 @@ Netzwerk
 40..49   espxx
 50..59   D1-xx
 		
+Konfiguration
+myconn
+boot.py
+
+
+Transfer 
+
+#compiler
+mpy-cross pelt.py
+
+
+	
 
 set P=COM6
 		
@@ -149,7 +158,7 @@ python -m esptool --port %P% --baud 460800 write_flash --flash_size=detect 0 ESP
 cd microp
 ampy --port %P% put boot.py boot.py
 ampy --port %P% put webrepl_cfg.py webrepl_cfg.py
-
+ampy --port %P% put myconn.py myconn.py
 
 			
 ***ESP32
@@ -188,6 +197,13 @@ beautify
 flake8 --ignore=E501,E701 verb.py 
 autopep8 -i --select=E211,E225,E226,E231,E262,E302,W293 verb.py
 
+#Teraterm
+=========
+use UTF8 only (setup / additional / coding )
+define shortcuts:
+C:\Users\hh\AppData\Roaming\teraterm5 KEYBOARD.CNF
+  User1=59,0,import$20
+  
 #Notepad++ 
 ==========
 Edit → EOL-Conversion  → Unix
@@ -214,9 +230,6 @@ I2C Crossbar  Top View
   
 stl thumbnails: papas best
 ================
-
-espnow
-espn basics und configs
 
 FreeCad:
 ==========

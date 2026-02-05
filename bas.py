@@ -15,7 +15,7 @@ count = 2     # number of bytes
 start = time.ticks_ms()
 devadr = 0
 if impl=='ESP32C3':
-    pinSDA = machine.Pin(8)  # green
+    pinSDA = machine.Pin(8)  # green q
     pinSCL = machine.Pin(9)  # yell
 else:
     pinSDA = machine.Pin(4)  # green

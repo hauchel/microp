@@ -9,15 +9,15 @@ class espn():
     # broadcasts esp8266
     #   send: don't add to peer
     #   receive: von 32: geht nicht 
-    #   
+    # unbedingt connection zu fritzbox disablen!
     def __init__(self,waktiv=True):
-        print("Howdy espn from", __name__)
         self.is32 = (sys.platform == 'esp32')
+        
         self.macs = { 29: b'\xE8\xDB\x84\xC5\x1E\x3D', 31: b'\xc8\xc9\xa3\xc5\xfe\xfc', 
-                      41: b'\xE8\xDB\x84\xDF\x94\x78', 43: b'\xE8\xDB\x84\xC5\x3C\xA7', 45: b'\xe8\xdb\x84\xdf\x4d\x30',
+                      41: b'\xE8\xDB\x84\xDF\x94\x78', 43: b'\xE8\xDB\x84\xC5\x3C\xA7', 44: b'\xe8\xdb\x84\xc6\x2d\x7a', 45: b'\xe8\xdb\x84\xdf\x4d\x30',
                       48: b'\xe8\xdb\x84\xc5\xeb\x88',
-                      53: b'\xd8\xbf\xc0\r\xea\x0c',   55: b'\x84\xF3\xEB\x0D\x71\x9E'}
-        self.servip=55
+                      53: b'\xd8\xbf\xc0\r\xea\x0c',   55: b'\x84\xF3\xEB\x0D\x71\x9E', 56: b'\xe0\x98\x06\x21\xb0\x2e' }
+        self.servip=56
         if self.is32: self.macs[0]=b'\xFF\xFF\xFF\xFF\xFF\xFF' #broadcast
         self.ips={}
         for m in self.macs:
@@ -34,7 +34,7 @@ class espn():
             print (self.macz(self.mymac),'not in self.macs',end=': ')
             self.macbin(self.mymac)
             self.myip = 0
-        ###self.wlan.disconnect()      # ?? MUSS bei ESP8266?
+        self.wlan.disconnect()      # MUSS für gute Übertragung
         self.e = espnow.ESPNow()
         self.e.active(waktiv)
         for ip in self.macs:
@@ -45,7 +45,6 @@ class espn():
 #                self.e.add_peer(self.macs[ip],channel=self.mychan)
 #            else:
 #                self.e.add_peer(self.macs[ip],b'\x00' * 16,self.mychan)  
-        self.ack=True
         self.verbo=True #False
         self.mnum=1
         self.lastipn=0 #
@@ -60,7 +59,7 @@ class espn():
         print( f"b'{hex_str}'")
         
     def laninfo(self):
-        print(f"{self.wlan.status()} ack {self.ack}, wlan {self.wlan.active()}, espn {self.e.active()}, conn {self.wlan.isconnected()} {self.wlan.ipconfig('addr4')[0]} ", self.macz(self.wlan.config('mac')))  
+        print(f"{self.wlan.status()} wlan {self.wlan.active()}, espn {self.e.active()}, conn {self.wlan.isconnected()} {self.wlan.ipconfig('addr4')[0]} ", self.macz(self.wlan.config('mac')))  
 
     def stats(self):
         try:
@@ -69,17 +68,6 @@ class espn():
         except:
             print("8266?")
 
-    def conn(self,warte):
-        print("Connecting")
-        self.wlan.connect('FRITZ!HH','47114711')
-        if not warte: return
-        for i in range(10):
-            print ("Wait Connect",i)
-            if self.wlan.isconnected():
-                break
-            time.sleep(1)
-        print("connect is ",self.wlan.isconnected())
-        
     def showmacs(self):
         for m in sorted(self.macs.items()):
             print(f"{m[0]:>3}",self.macz(m[1]))
@@ -90,35 +78,38 @@ class espn():
         self.mnum+=1
         if self.mnum > 99:
             self.mnum=1
-        ms=f"M{self.mnum:02d}"
-        if ipn==0:
-            peer=b'\xFF\xFF\xFF\xFF\xFF\xFF'
-        else:
-            peer=self.macs[ipn]
-        res=self.e.send(peer, ms+txt) #OSError 869 -> kein espnow active
-        print("Snd",ipn,ms+txt,res)
+        ms=f"M{self.mnum:02d}{txt}"
+        peer=self.macs[ipn]
+        res=self.e.send(peer, ms) #OSError 869 -> kein espnow active
+        if self.verbo: print("Snd",ipn,ms,res)
         return res
     
     def again(self):
         self.sende(self.lastipn,self.lasttxt)
         
-    def recv(self):
-        print("Rcv",end=" ")
-        host, msg = self.e.recv(1000)
+    def reccli(self):
+        print("reccli",end=" ")
+        host, msg = self.e.recv(100)
         if msg:             # msg == None if timeout in recv()
             msgt=msg.decode()
             print(self.ips[host], msgt)
-            if msgt[0]=='A':
-                return ''
             if msgt[0]=='M':
-                if self.ack:
-                    ant=self.e.send(host, 'A'+msgt[1:3])
-                    if self.verbo: print('ack',ant)
                 return msgt[3:]
             print("Invalid",msgt)
         else:
             print("Nix")
             return ''
+    
+    def recsrv(self):
+        if self.verbo: print("recsrv",end=" ")
+        host, msg = self.e.recv(100)
+        if msg:             # msg == None if timeout in recv()
+            msgt=msg.decode()
+            if self.verbo: print(self.ips[host], msgt)
+            return self.ips[host], msgt
+        else:
+            print("Nix")
+            return None
     
     def info(self):
         self.laninfo()

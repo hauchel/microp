@@ -6,5 +6,6 @@ IF ERRORLEVEL 1 (
     echo Fehler!!!
 ) ELSE (
 	time /T
+	echo %2
 )
 

@@ -69,7 +69,7 @@ class REGL:
         self.stetop=len(self.sted)-1     # zeigt auf grösstes sted
         # Stellwert 0 .. 4095
         self.stell=0
-        self.stellMin=0
+        self.stellMin=1500
         self.stellMax=4095
         self.tiset=100    # Tick ms
         self.tick=0       # akt
@@ -80,7 +80,7 @@ class REGL:
         self.soll=soll/1000.0
         self.tick=self.tiset
         self.say=1
-        print(f"Soll {self.soll:2.3f} tick {self.tick} say{self.sayset}")
+        print(f"Soll {self.soll:2.3f} tick {self.tick} say {self.sayset}")
 
     def stop(self):
         self.tick=0
