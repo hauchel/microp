@@ -45,10 +45,11 @@ class espn():
 #                self.e.add_peer(self.macs[ip],channel=self.mychan)
 #            else:
 #                self.e.add_peer(self.macs[ip],b'\x00' * 16,self.mychan)  
-        self.verbo=True #False
-        self.mnum=1
+        self.verbo=False
+        self.mnum=0     #message number
         self.lastipn=0 #
         self.lasttxt=''
+        self.lastsnd=0 #timestamp in ms
         
     
     def macz(self,mac):
@@ -73,12 +74,14 @@ class espn():
             print(f"{m[0]:>3}",self.macz(m[1]))
             
     def sende(self,ipn,txt):
+        self.wlan.active(True)
         self.lastipn=ipn
         self.lasttxt=txt
+        self.lastsnd=time.ticks_ms()  
         self.mnum+=1
         if self.mnum > 99:
             self.mnum=1
-        ms=f"M{self.mnum:02d}{txt}"
+        ms=f"M{self.mnum:02d} {txt}"
         peer=self.macs[ipn]
         res=self.e.send(peer, ms) #OSError 869 -> kein espnow active
         if self.verbo: print("Snd",ipn,ms,res)
@@ -88,16 +91,16 @@ class espn():
         self.sende(self.lastipn,self.lasttxt)
         
     def reccli(self):
-        print("reccli",end=" ")
+        if self.verbo: print("reccli",end=" ")
         host, msg = self.e.recv(100)
         if msg:             # msg == None if timeout in recv()
             msgt=msg.decode()
-            print(self.ips[host], msgt)
+            if self.verbo: print(self.ips[host], msgt)
             if msgt[0]=='M':
-                return msgt[3:]
-            print("Invalid",msgt)
+                return msgt[4:]
+            print("reccli Invalid",msgt)
         else:
-            print("Nix")
+            print("reccli Nix")
             return ''
     
     def recsrv(self):

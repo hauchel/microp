@@ -1,9 +1,8 @@
 # Configuration
 class CONF:
     def __init__(self):
-        self.vcc = 3.272                    # Spannung des Teilers in V
-        self.rtop=[6760, 6705, 6708, 6754]  # Widerstand gegen vcc
-#        self.rtop=[9830, 9830, 9990, 9850]  # Widerstand gegen vcc
+        self.vcc = 3.000                    # Spannung des Teilers in V
+        self.rtop=[9830, 9830, 9990, 9850]  # Widerstand gegen vcc
         self.intwid1=[17562, 16570, 16280,  16596, 14462, 13442, 12007, 11443, 10304, 9515, 8426, 7292, 5803, 4870]
         self.intwid2=[17562, 16570, 16280,  15295, 14462, 13442, 12007, 11519, 10304, 9515, 8236, 7292, 5803, 4870]
         self.intwid3=[17562, 17249, 16887,  16520, 14810, 13625, 12152, 11519, 10181, 9382, 8536, 7110, 5633, 4684]        

@@ -42,87 +42,31 @@ if adc: adc.set_conv(rate=adcRate, channel1=adcChan)
 
 cmd=''          # command received
 nachricht=''    # to send
-shotime=1000  # jede sekunde, set by T
+shotime=1000    # jede sekunde, set by T
+lantime=100     # abschalten nach Senden
+online= False   # stay online
 shotick=0     # akt
 showas=15     # 1/0 überhaupt, wenn nix anderes Spannung
 shoraw=0      # 1 raw 
 shotmp=0      # 1 Temp
 showid=0      # 1 Widerst
 shomed=0      # anzahl miwe
-forw=True     # an Server
+forw=False    # an Server
+sndtick=100   # off after ms
 raws=[[], [], [], []]
 
 
 from conf44 import CONF
 cfg=CONF()
 
-class xmenu:
-    def __init__(self):
-        self.inpAkt=False
-        self.strmode=False
-        self.inp=0
-        self.stack=[]
-        self.inpStr=''
-        self.myip=33
-
-    def prompt(self):
-        self.strmode=False
-        print (self.inp,end=">")
-        return
-        if self.myip !=0:
-            print (self.myip,end=">")
-        else:
-            print ('??',end=">")
-    
-    def mach(self,ch):
-        print(ch,end='')
-        if self.strmode:
-            if ch=='#':
-                print()
-                self.prompt()
-            elif ch=='\b':
-                self.inpStr=self.inpStr[:-1]
-            elif ch=='\n':
-                print(f">{self.inpStr}<")
-                if self.inpStr =='':
-                    self.prompt()
-                else:
-                    #myn.sende(inp, inpStr)
-                    self.inpStr=''
-                    print("'",end='')
-            else:
-                self.inpStr+=ch
-            return  True
-            
-        if ((ch >= '0') and (ch <= '9')):
-            if (self.inpAkt):
-                self.inp = self.inp * 10 + (ord(ch) - 48)
-            else:
-                self.inpAkt = True
-                self.inp = ord(ch) - 48
-            return True
-        self.inpAkt=False
-        if  ch==",":
-            self.stack.append(self.inp)
-        elif ch=="+":
-            self.inp=self.inp+self.stack.pop()
-            print('=',self.inp)
-        elif ch=="-":
-            self.inp=self.stack.pop()-self.inp
-            print('=',self.inp)
-        elif ord(ch)==228:
-            self.inpStr=''
-            self.strmode=True
-        else:
-            return False
-        return True
-        
-men=xmenu()
-
 myn=espn()
 print("Server is",myn.servip)
 print("\x1b]2;"+"Cli "+str(myn.myip)+"\x07", end="") #Teraterm title change request
+myn.wlan.active(False)
 
+from myMenu import xmenu
+men=xmenu()
+men.myip=myn.myip
 
 pidef= {2:1,4:0,5:0}    #default for outports
 pins = {}
@@ -226,13 +170,14 @@ def hilf():
       ..w             Widerstand 
       ..x             Temp 
       ..D     Grösse med
-    
+
     d       evalmed
     ..E     enow.active 0/1
     ..F     wlan.active 0/1
     ..f     forw active 0/1
     #,..h   set # to 1 for .. ms
-    
+
+    ..o     stay online 0/1
     i       Info  
     m       Macs
     ..n     lightsl ..sec
@@ -254,7 +199,7 @@ def menu(ch):
     global adcGain, adcRate, adcChan
     global shotime, showas, shotick, shoraw,showid,shotmp,shomed
     global raws
-    global nachricht,forw
+    global nachricht,forw,online
 
     try:
         if men.mach(ch): return False
@@ -292,6 +237,7 @@ def menu(ch):
             print(f"Alloc {gc.mem_alloc()}",end=" > ")
             gc.collect()
             print(f"Alloc {gc.mem_alloc()}  Free {gc.mem_free()}")
+            cfg.show()
         elif ch=="m":
             print()
             myn.showmacs() 
@@ -306,6 +252,9 @@ def menu(ch):
         elif ch=="q" or ch == '\x04':       # quit
             print ("restart with ",__name__+".loop() ")
             return True
+        elif ch=="o":
+            online= men.inp!=0
+            print("online",online)              
         elif ch=="p":
             setpin(men.stack[-1],men.inp)
         elif ch=="r":
@@ -326,7 +275,9 @@ def menu(ch):
         elif ch=="v":       
             myn.verbo = not myn.verbo
             print("verbo", myn.verbo)   
- 
+        elif ch=="V":      
+            cfg.vcc=men.inp/1000.0
+            cfg.show() 
         elif ch=="w":
             showid=men.inp
             print("showid", showid,':') 
@@ -380,7 +331,15 @@ def loop():
                 if difftick > shotick:
                     lastsho = tim
                     show()
- 
+            if myn.lastsnd > 0:
+                if online:
+                    print("O",myn.lastsnd)
+                    myn.lastsnd = 0
+                else:
+                    difftick = time.ticks_diff(tim, myn.lastsnd)
+                    if difftick > sndtick:
+                        myn.lastsnd = 0
+                        myn.wlan.active(False)
         except Exception as inst:
             #print ("Loop",end=' ')
             sys.print_exception(inst)   

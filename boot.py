@@ -12,9 +12,8 @@ p14 = Pin(14, Pin.IN, Pin.PULL_UP)
 print("\nGPIO 14 ",p14.value())
 from myconn import conn
 nw=conn()
-if p14.value()==1 :   
+if p14.value()==0 :   
     nw.an()
 else:
-    print("\nGPIO 14 ",p14.value(),'No Connect!')
     nw.aus()
 print("boot done")

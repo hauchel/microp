@@ -1,7 +1,4 @@
-# Control for espn
-# Gpios:
-# 5 (SCL)
-# 4 (SDA)
+# Server for espn
 #
 import sys
 import uselect
@@ -12,20 +9,25 @@ from espn import espn
 poller = uselect.poll()
 poller.register(sys.stdin, uselect.POLLIN)
 
-inpAkt=False
-strmode=False
-inpStr=''
-inp=0
-stack=[]
-cmd=''         # command received
 nachricht='m'  # to send
+antwort={44: "m", 31: "m" }     # 
 ticktime=0     #
 
 myn=espn()
+print("\x1b]2;"+"Srv "+str(myn.myip)+"\x07", end="") #Teraterm title change request
 
+
+from myMenu import xmenu
+men=xmenu()
+men.myip=myn.myip
+
+def shoants():
+    print()
+    for m in sorted(antwort.items()):
+            print(f"{m[0]:>3} {m[1]}")
+            
 def hilf():
     print("""
-    ..a     ack 0/1
     ..c     connect   0/1
     ..e     enow.active 0/1
     ..w     wlan.active 0/1
@@ -39,146 +41,84 @@ def hilf():
     r       recv
     ..s     send to ..
     ..t     ticktime
-    '       string mode, send to inp after CR
+    string mode:
+        ..ä     1    define Antwort
+        ö       2
+        ..ü     3  send to inp after CR
     #       terminate string mode
     """)
 
-def prompt():
-    global strmode
-    strmode=False
-    if myn.myip !=0:
-        print (myn.myip,end=">")
-    else:
-        print ('??',end=">")
-    
-def cmdin():
-    global cmd
-    txt=input('cmd: ')
-    cmd+=txt
-    print(cmd)
-    
 def menu(ch):   
-    global strmode
-    global inpStr        
-    global inpAkt
-    global inp
-    global stack
     global nachricht
     global ticktime
+    global antwort
     try:
-        print(ch,end='')
-        if strmode:
-            if ch=='#':
-                print()
-                prompt()
-            elif ch=='\b':
-                inpStr=inpStr[:-1]
-            elif ch=="'":
-                inpStr=myn.lasttxt
-                print("\n'"+inpStr,end='')
-            elif ch=='\n':
-                print(f">{inpStr}<")
-                if inpStr =='':
-                    prompt()
-                else:
-                    myn.sende(inp, inpStr)
-                    inpStr=''
-                    print("'",end='')
-            else:
-                inpStr+=ch
-            return
-            
-        if ((ch >= '0') and (ch <= '9')):
-            if (inpAkt):
-                inp = inp * 10 + (ord(ch) - 48)
-            else:
-                inpAkt = True
-                inp = ord(ch) - 48
-            return
+        if men.mach(ch):
+            if men.strrdy:
+                if men.strmode==3:
+                    myn.sende(men.inp,men.inpstr)
+                elif men.strmode==1:
+                    antwort[men.inp]=men.inpstr
+                    shoants()
+                men.strdone()
+            return False
+        inp=men.inp
+        if ch=="a":         #
+            pass
+        elif ch=="c":   
+            if (inp!=0):
+                myn.conn(True)
+            else:  
+                myn.wlan.disconnect()
+                print("connect is ",myn.wlan.isconnected())
+        elif ch=="e":
+            myn.e.active(inp!=0)
+            print("ective",myn.e.active())           
+        elif ch=="i":
+            myn.laninfo()       
+            print(myn.lastipn,myn.lasttxt)               
+        elif ch=="j":
+            myn.info()                    
+        elif ch=="m":
+            print()
+            myn.showmacs()                  
+        elif ch=="q" or ch == '\x04':       # quit
+            print ("restart with ",__name__+".loop() ")
+            return True
+        elif ch=="r":
+            myn.recv()    
+        elif ch=="s":
+            myn.sende(inp, nachricht)    
+        elif ch=="t":
+            ticktime=inp
+            print("tick ms", ticktime)   
+        elif ch=="v":       
+            myn.verbo = not myn.verbo
+            print("verbo", myn.verbo)   
+        elif ch=="w":
+            myn.wlan.active(inp!=0)
+            print("wlan",myn.wlan.active())                 
+        elif ch==" ":
+            ticktime=0
+            print("tick 0 ms")                   
         else:
-            inpAkt=False
-            if ch=="a":         #
-                myn.ack = (inp!=0)
-                print("ack",myn.ack)
-            elif ch=="c":   
-                if (inp!=0):
-                    myn.conn(True)
-                else:  
-                    myn.wlan.disconnect()
-                    print("connect is ",myn.wlan.isconnected())
-            elif ch=="e":
-                myn.e.active(inp!=0)
-                print("ective",myn.e.active()) 
-            elif ch=="h":
-                pinh(stack[-1],inp)                
-            elif ch=="i":
-                myn.laninfo()       
-                print(myn.lastipn,myn.lasttxt)               
-            elif ch=="j":
-                myn.info()                    
-            elif ch=="m":
-                print()
-                myn.showmacs() 
-            elif ch=="n":                
-                lightsl(inp)    
-            elif ch=="N":                
-                deepsl(inp)                   
-            elif ch=="q" or ch == '\x04':       # quit
-                print ("restart with ",__name__+".loop() ")
-                return True
-            elif ch=="p":
-                setpin(stack[-1],inp)
-            elif ch=="r":
-                myn.recv()    
-            elif ch=="s":
-                myn.sende(inp, nachricht)    
-            elif ch=="t":
-                ticktime=inp
-                print("tick ms", ticktime)   
-            elif ch=="v":       
-                myn.verbo = not myn.verbo
-                print("verbo", myn.verbo)   
-            elif ch=="w":
-                myn.wlan.active(inp!=0)
-                print("wlan",myn.wlan.active())                 
-            elif ord(ch)==228:  #ä
-                inpStr=''
-                strmode=True
-                return
-            elif ch==",":
-                stack.append(inp)
-                return
-            elif ch=="+":
-                inp=inp+stack.pop()
-                print('=',inp)
-                return
-            elif ch=="-":
-                inp=stack.pop()-inp
-                print('=',inp)
-                return
-            elif ch==" ":
-                ticktime=0
-                print("tick 0 ms")                   
-            else:
-                print("ord=",ord(ch))
-                hilf()
+            print("ord=",ord(ch))
+            hilf()
     except Exception as inst:
         # print ("Menu",end=' ')        
         sys.print_exception(inst) 
-    prompt()
+    men.prompt()
     return False
 
 def loop():
     global cmd
     lasttick=0
+    men.prompt()
     while True:
         try:
-            if len(cmd) !=0:
-                ch=cmd[0]
-                cmd=cmd[1:]
-                if menu(ch): break    
             if myn.e.any():
                 host, msg = myn.recsrv()
+                myn.sende(host,antwort[host])
                 print("any",host,msg)
             if poller.poll(0):
                 ch=sys.stdin.read(1)
@@ -190,6 +130,6 @@ def loop():
                     myn.again()
         except Exception as inst:
             #print ("Loop",end=' ')
-            sys.print_exception(inst)   
-prompt()                
+            sys.print_exception(inst) 
+            
 loop()

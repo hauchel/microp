@@ -1,4 +1,4 @@
-import encli
+import inat
 from myconn import conn
 nw=conn()
 nw.an()

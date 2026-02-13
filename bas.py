@@ -2,13 +2,13 @@
 import gc
 import sys
 import time
-import network
 import machine 
 import os
+import network
 from machine import I2C,Pin
 
 impl=sys.implementation[2].split()[-1]  #ESP32 ESP32C3 ESP8266
-print('Howdy, Running on',impl)
+print(__name__,"Running on',impl)
 
 # some globals    
 count = 2     # number of bytes
@@ -25,43 +25,35 @@ i2c = I2C(scl=pinSCL, sda=pinSDA)
 wlan = network.WLAN(network.STA_IF)
 py_files = []
 
-
 def info():
     gc.collect()
     print(" Free", gc.mem_free(), "Dev", devadr, "Cnt", count,)
-
 
 def readdev():
     # read one
     erg = i2c.readfrom(devadr, 1)
     print("Read: ", erg)
 
-
 def writedev(data):
     print('Acks:', i2c.writeto(devadr, data))
-
-
-def connect():
-    wlan.active(True)
-    wlan.connect('FRITZ!HH', '47114711')
-    #wlan.connect('NETGEAR','12345678')
-    for i in range(10):
-        print("Wait Connect", i)
-        if wlan.isconnected():
-            break
-        time.sleep(1)
-
 
 def osinfo():
     statvfs = os.statvfs('/')
     print('\bblock_size', statvfs[0], 'total_blocks', statvfs[2], 'free_blocks', statvfs[3])
     info()
 
-
-def listfiles():
+def list_py():
     global py_files
     py_files = [f for f in os.listdir() if f.endswith('.py')]
-    py_files.sort()  # optional, makes selection deterministic
+    py_files.sort()
+    print()
+    for i in range(len(py_files)):
+        print(f"{i:2d} {py_files[i]}")    
+
+def list_mpy():
+    global py_files
+    py_files = [f for f in os.listdir() if f.endswith('.mpy')]
+    py_files.sort()
     print()
     for i in range(len(py_files)):
         print(f"{i:2d} {py_files[i]}")    
@@ -126,12 +118,12 @@ def hilfe():
     #s     soft reset
     t     tasten auf 39
     q     quit
-    p     pyfiles
+    p     py files
+    P     mpy 
     ..s   show
     ..x   execute py
     ..y   import py
     ..z   zap (remove) py
-    
     """)
 
 
@@ -176,9 +168,10 @@ def menu():
                     p2.on()    
                 elif ch == "i":       # pin inp
                     p2 = Pin(inp, Pin.IN,Pin.PULL_UP )
+                    print(p2, "is", p2.value())  
                 elif ch == "j":       # pin inp
-                    p2 = Pin(inp, Pin.IN,Pin.PULL_UP )
-                    print(p2, "is", p2.value())                    
+                    info()
+                                      
                 elif ch == "l":       # pin low
                     p2 = Pin(inp, Pin.OUT)   
                     p2.off()    
@@ -197,7 +190,9 @@ def menu():
                 elif ch == "o": 
                    osinfo()
                 elif ch == "p": 
-                   listfiles()
+                   list_py()
+                elif ch == "P": 
+                   list_mpy()
                 elif ch == "q" or ch == '\x04':       
                     print("\brestart with ", __name__ + ".menu() ")
                     return
@@ -226,7 +221,6 @@ def menu():
                     filnam=py_files[inp]
                     print ("Zapping",filnam)
                     os.remove(filnam)
-                    listfiles()
                    
                 else:
                     info()
