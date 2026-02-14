@@ -1,4 +1,4 @@
-import inat
+import pelt
 from myconn import conn
 nw=conn()
 nw.an()

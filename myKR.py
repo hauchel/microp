@@ -61,16 +61,28 @@ class KENNL:
         
 
 class REGL:
-    def __init__(self):
+    def __init__(self,typ=1):
         # Strom in A:
-        self.soll=0 
-        self.abwd=[   -0.1,   -0.05, -0.01,  -0.002,  +0.002,    +0.01,   +0.05,     +0.1,      +0.2]
-        self.sted=[ -50  , -10  ,  -3  ,   -1  ,    0   ,      +1,      +3,      +20      , +100,     +150 ] # wenn < abwd dieses sted
+
+        if typ==1: # TIP122
+            self.abwd=[   -0.1,   -0.05, -0.01,  -0.002,  +0.002,    +0.01,   +0.05,     +0.1,      +0.2]
+            self.sted=[ -50  , -10  ,  -3  ,   -1  ,    0   ,      +1,      +3,      +20      , +100,     +150 ] # wenn < abwd dieses sted
+            self.stellMin=1500
+            self.stellMax=4095
+            self.stellStop=0
+            self.typ=typ
+        else:     #LM317
+            self.abwd=[   -0.1,   -0.05, -0.01,  -0.002,  +0.002,    +0.01,   +0.05,     +0.1,      +0.2]
+            self.sted=[ +20  , +10  ,  +3  ,   +1  ,    0   ,      -1,      -3,      -10      , -20,     -50 ] # wenn < abwd dieses sted
+            self.stellMin=400
+            self.stellMax=900
+            self.stellStop=1000
+            self.typ=2
+
+        self.soll=0             
         self.stetop=len(self.sted)-1     # zeigt auf grösstes sted
         # Stellwert 0 .. 4095
-        self.stell=0
-        self.stellMin=1500
-        self.stellMax=4095
+        self.stell=self.stellMin
         self.tiset=100    # Tick ms
         self.tick=0       # akt
         self.sayset=-2    # nur bei delta >1
@@ -85,6 +97,7 @@ class REGL:
     def stop(self):
         self.tick=0
         print("stop")
+        return self.stellStop
 
     def regel(self,ist):
         abw=self.soll - ist

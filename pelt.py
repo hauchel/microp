@@ -41,7 +41,7 @@ shoraw=0      # 1 raw
 shotmp=0      # 1 Temp
 showid=0      # 1 Widerst
 shomed=0      # anzahl miwe
-cmd=""   # Init-setting,overwr by cfg.
+cmd="16z"     # Init-settings
 verbo=False
 raws=[[], [], [], []]
 
@@ -68,11 +68,10 @@ else: dac=None
 
 from myKR import KENNL,REGL      
 ken=KENNL(dac)               
-reg=REGL()
+reg=REGL(typ=2)
 
 from myCONF import CONF
 cfg=CONF()  
-cmd=cfg.cmd
 cfg.readint()
 if 64 in devs:
     from myINA219 import INA219
@@ -197,9 +196,8 @@ def menu(ch):
                 print("Scanning...", end=' ')
                 print(i2c.scan())
             elif ch==" ":  #Nothalt
-                shotick=0
-                reg.stop()
-                if dac is not None: dac.set_value(0)
+                tmp=reg.stop()
+                if dac is not None: dac.set_value(tmp)
                 ken.tick=0
             elif ch=="a":      
                 raw=adc.read(rate=adcRate, channel1=adcChan)
@@ -265,7 +263,8 @@ def menu(ch):
                 adcInfo()                      
             elif ch=="q" or ch == '\x04':       # quit
                 print ("restart with ",__name__+".loop() ")
-                if dac is not None: dac.set_value(0)
+                tmp=reg.stop()
+                if dac is not None: dac.set_value(tmp)
                 return True
             elif ch=="r":      
                 reg.start(inp)
@@ -350,7 +349,7 @@ def menu(ch):
     prompt()
     return False
 
-from conn import conn
+from myconn import conn
 nw=conn()
 
 def loop():
@@ -384,9 +383,8 @@ def loop():
             if ken.tick >0:
                 difftick = time.ticks_diff(tim, lastken)
                 if difftick > ken.tick:
-                    lastken = tim
-                    ken.store([ina.read_current(),int(lum.luminance(BH1750.CONT_HIRES_1))])                                    
-                    #ken.store([ina.read_current(),ina.read_voltage()])                
+                    lastken = tim                            
+                    ken.store([ina.read_current(),ina.read_voltage()])                
         except Exception as inst:
             print ("Loop",end=' ')
             sys.print_exception(inst)   

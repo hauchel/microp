@@ -8,7 +8,7 @@ import network
 from machine import I2C,Pin
 
 impl=sys.implementation[2].split()[-1]  #ESP32 ESP32C3 ESP8266
-print(__name__,"Running on',impl)
+print(__name__,"Running on",impl)
 
 # some globals    
 count = 2     # number of bytes
